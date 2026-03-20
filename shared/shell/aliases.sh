@@ -4,6 +4,17 @@ export VISUAL="nvim"
 alias vi="nvim"
 alias vim="nvim"
 
+if command -v lsd >/dev/null 2>&1; then
+  alias ls="lsd"
+  alias ll="lsd -l"
+  alias la="lsd -la"
+  alias lt="lsd --tree"
+fi
+
+if ! command -v btop >/dev/null 2>&1 && command -v btop4win >/dev/null 2>&1; then
+  alias btop="btop4win"
+fi
+
 shell_name="sh"
 if [ -n "${ZSH_VERSION:-}" ]; then
   shell_name="zsh"

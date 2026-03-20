@@ -45,6 +45,8 @@
 - `vi`/`vim` -> `nvim`
 - `EDITOR`/`VISUAL`
 
+Windows에서는 `MSYS2`의 기본 `/home/<user>`를 그대로 쓰지 않고, WezTerm이 `HOME`을 Windows 사용자 홈으로 넘겨서 `~/.bashrc`, `~/.bash_profile`, `~/.config/terminal-bootstrap`이 모두 같은 기준점을 보도록 설계한다.
+
 ### 3. 폰트 전략
 
 `Monoplex KR Nerd Wide`는 외부 패키지 설치에 맡기지 않고 폴더 내부 자산으로 보관한다.
@@ -55,6 +57,7 @@
 - 재설치 시 외부 링크나 패키지 상태에 덜 의존한다.
 - mac과 Windows에서 같은 폰트 파일 셋을 기준으로 맞출 수 있다.
 - `WezTerm`의 `font_dirs`를 쓰면 OS 전역 폰트 설치 없이도 기준 경로를 고정할 수 있다.
+- Windows의 `DirectWrite`/WezTerm 기준 family 이름은 파일명과 다를 수 있으므로, WezTerm 설정은 파일명 `MonoplexKRWideNerd-*`가 아니라 실제 family인 `Monoplex KR Nerd`를 기준으로 맞춘다.
 
 ### 4. LazyVim 전략
 
@@ -95,6 +98,15 @@ CLI 도구는 역할만 통일한다.
 
 Windows 구현에서는 `MSYS2 bash`를 메인 인터랙티브 셸로 쓰되, 대부분의 CLI는 `winget` 또는 `choco`로 네이티브 설치하고 `MSYS2_PATH_TYPE=inherit`로 셸에서 그대로 소비한다.
 
+Windows 패키지 전략은 다음 원칙을 따른다.
+
+- 기본 패키지는 `winget`으로 설치한다.
+- `winget`에 없는 패키지만 `choco` fallback을 사용한다.
+- `choco` fallback 패키지는 관리자 권한 요구 여부를 메타데이터로 기록한다.
+- 비관리자 환경에서 실패해도 전체 부트스트랩을 중단시키면 안 되는 패키지는 optional로 취급한다.
+- Windows 전용 패키지 이름이 UX 계약과 다르면 alias로 맞춘다.
+  예: `btop4win` -> `btop`
+
 ### 6. Shell Integration 전략
 
 WezTerm의 shell integration은 공통 자산으로 번들한다.
@@ -109,6 +121,14 @@ WezTerm의 shell integration은 공통 자산으로 번들한다.
 - 새 탭/분할 시 현재 작업 디렉터리 계승 품질이 좋아진다.
 - 프롬프트/명령 경계 추적이 개선된다.
 - launch menu 같은 추가 UI 설정 없이도 체감 이득이 크다.
+
+PowerShell 쪽 공유 alias 스크립트는 설치 직후 새 세션에서도 `winget` 사용자 PATH를 확실히 인식하도록 Machine/User PATH를 다시 합친 뒤 `starship`, `zoxide` 초기화를 수행한다.
+
+### 7. 동기화 전략
+
+- 디렉터리 자산은 링크를 우선 사용한다.
+- 파일 자산은 Windows 비관리자 환경에서 심볼릭 링크 실패 가능성을 기본 가정하고 copy fallback을 허용한다.
+- 따라서 source of truth는 항상 저장소와 `~/.config/terminal-bootstrap` 스테이징 디렉터리이고, 파일 단위 타깃은 필요시 재동기화한다.
 
 ## Deliverables
 

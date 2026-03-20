@@ -104,13 +104,15 @@
         }
         @{
             Name = 'btop4win'
-            DetectCommand = 'btop'
+            DetectCommand = 'btop4win'
             WingetId = 'aristocratos.btop4win'
         }
         @{
             Name = 'navi'
             DetectCommand = 'navi'
             Chocolatey = 'navi'
+            RequiresAdmin = $true
+            Optional = $true
         }
     )
 }

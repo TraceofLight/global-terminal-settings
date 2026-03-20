@@ -9,7 +9,8 @@
 - 터미널: `WezTerm`
 - 기본 셸: `zsh`
 - 폰트: `Monoplex KR Nerd Wide`
-- 테마: `Dracula`
+- 테마: `Catppuccin Mocha`
+- 배경 스타일: `window_background_opacity = 0.8` + `macos_window_background_blur = 20`
 - 편집기: `Neovim` + 현재 로컬 `LazyVim`
 
 ## Implemented Flow

@@ -5,24 +5,16 @@ Windows와 mac에서 최대한 비슷한 터미널 UX를 재현하기 위한 부
 이 폴더는 다음을 목표로 한다.
 
 - `WezTerm` 기반 공통 터미널 UX
-- `Dracula` 계열 색상과 `Monoplex KR Nerd Wide` 폰트 사용
+- `Catppuccin Mocha` 계열 색상과 `Monoplex KR Nerd Wide` 폰트 사용
+- 배경은 Windows `Acrylic` + opacity `0.8`, macOS blur `20` 기준
 - `MSYS2 UCRT64 bash`(Windows)와 `zsh`(mac)를 쓰되, 체감 UX는 최대한 통일
 - 현재 로컬 `LazyVim` 설정을 그대로 자산으로 포함
 - 폰트와 설정 파일은 이 폴더 안에 보관하고, 설치 스크립트는 인터넷에서 패키지를 받는 준오프라인 방식
 
-현재 상태:
-
-- 문서화 완료
-- 폴더 구조 생성 완료
-- 폰트 자산 포함 완료
-- 현재 로컬 `LazyVim` 설정 스냅샷 포함 완료
-- Windows/mac 설치 스크립트 구현 완료
-- 실제 시스템 설치는 아직 실행하지 않음
-
 ## 폴더 구조
 
 ```text
-terminal-bootstrap/
+global-terminal-settings/
 ├─ docs/
 │  ├─ plans/
 │  ├─ mac-setup.md
@@ -90,6 +82,8 @@ terminal-bootstrap/
 - mac: `~/.config/nvim`
 
 폰트는 OS 전역 폰트 설치 대신 `WezTerm`의 `font_dirs`를 사용한다. 따라서 이 부트스트랩 폴더와 스테이징 루트만 유지하면 동일한 폰트 기준을 재현할 수 있다.
+
+Windows에서는 디렉터리 링크를 우선 사용하지만, 파일 단위 설정 타깃은 비관리자 환경에서 copy fallback이 기본 동작일 수 있다.
 
 ## 설치 스크립트
 

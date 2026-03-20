@@ -22,24 +22,24 @@ config.font_size = 13.0
 config.line_height = 1.05
 config.cell_width = 1.0
 config.audible_bell = "Disabled"
-config.color_scheme = "Dracula (Official)"
+config.color_scheme = "Catppuccin Mocha"
+config.window_background_opacity = 0.8
+config.text_background_opacity = 1.0
 config.font_dirs = {
   bootstrap_dir .. "/fonts/MonoplexKRWideNerd",
 }
 
 config.font = wezterm.font_with_fallback({
-  "Monoplex KR Nerd Wide",
-  "MonoplexKRNerdWide",
   "Monoplex KR Nerd",
   "MonoplexKRNerd",
   "JetBrainsMono Nerd Font",
 })
 
 config.window_padding = {
-  left = 10,
-  right = 10,
-  top = 8,
-  bottom = 8,
+  left = 12,
+  right = 12,
+  top = 10,
+  bottom = 10,
 }
 
 config.keys = {
@@ -50,9 +50,12 @@ config.keys = {
 }
 
 if wezterm.target_triple:find("windows") then
+  local windows_home = wezterm.home_dir:gsub("\\", "/")
+  config.win32_system_backdrop = "Acrylic"
   config.set_environment_variables = {
     CHERE_INVOKING = "1",
     MSYS2_PATH_TYPE = "inherit",
+    HOME = windows_home,
   }
   local system_drive = os.getenv("SystemDrive") or "C:"
   local msys2_shell = system_drive .. "/msys64/msys2_shell.cmd"
@@ -65,6 +68,9 @@ if wezterm.target_triple:find("windows") then
     config.default_prog = { "pwsh.exe", "-NoLogo" }
   end
 else
+  if wezterm.target_triple:find("darwin") then
+    config.macos_window_background_blur = 20
+  end
   config.default_prog = { "/bin/zsh", "-l" }
 end
 

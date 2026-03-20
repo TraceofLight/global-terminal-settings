@@ -5,7 +5,9 @@
 ## Must Match
 
 - 터미널 프로그램은 `WezTerm`
-- 기본 색상 방향은 `Dracula`
+- 기본 색상 방향은 `Catppuccin Mocha`
+- 배경 스타일은 `window_background_opacity = 0.8` 기준
+- Windows는 `Acrylic`, macOS는 blur `20`을 사용
 - 기본 폰트는 `Monoplex KR Nerd Wide`
 - `bash`/`zsh`는 WezTerm shell integration을 활성화
 - `vi`, `vim`은 `nvim`으로 연결
@@ -25,6 +27,9 @@
 
 ## Command Policy
 
+- 기본 목록 조회: `ls` -> `lsd`
+- 상세 목록 조회: `ll`, `la`
+- 트리 목록 조회: `lt`
 - 일상 파일 탐색: `fd`
 - 일상 텍스트 검색: `rg`
 - 디렉터리 이동: `zoxide`

@@ -16,6 +16,7 @@ $script:SourceRoot = Join-Path $script:BootstrapRoot 'shared'
 $script:InstallRoot = Join-Path $HOME '.config\terminal-bootstrap'
 $script:Timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $script:PackageSpecs = (Import-PowerShellDataFile (Join-Path $PSScriptRoot 'packages.psd1')).Packages
+$script:IsAdministrator = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 function Write-Section {
     param([string]$Title)
@@ -260,15 +261,32 @@ function Install-Package {
         return
     }
 
-    if ($Spec.ContainsKey('Chocolatey') -and $Spec.Chocolatey -and (Get-Command choco -ErrorAction SilentlyContinue)) {
-        Invoke-Action "Install $($Spec.Name) via choco ($($Spec.Chocolatey))" {
-            & choco install $Spec.Chocolatey -y --no-progress
-            if ($LASTEXITCODE -ne 0) {
-                throw "choco install failed for $($Spec.Name)"
-            }
+    if ($Spec.ContainsKey('RequiresAdmin') -and $Spec.RequiresAdmin -and -not $script:IsAdministrator) {
+        $message = "skip  package requires administrator rights in this environment: $($Spec.Name)"
+        if ($Spec.ContainsKey('Optional') -and $Spec.Optional) {
+            Write-Warning $message
+            return
         }
-        Refresh-SessionPath
-        return
+        throw $message
+    }
+
+    if ($Spec.ContainsKey('Chocolatey') -and $Spec.Chocolatey -and (Get-Command choco -ErrorAction SilentlyContinue)) {
+        try {
+            Invoke-Action "Install $($Spec.Name) via choco ($($Spec.Chocolatey))" {
+                & choco install $Spec.Chocolatey -y --no-progress
+                if ($LASTEXITCODE -ne 0) {
+                    throw "choco install failed for $($Spec.Name)"
+                }
+            }
+            Refresh-SessionPath
+            return
+        } catch {
+            if ($Spec.ContainsKey('Optional') -and $Spec.Optional) {
+                Write-Warning "Optional package install failed: $($Spec.Name). $_"
+                return
+            }
+            throw
+        }
     }
 
     throw "No installer available for $($Spec.Name)"

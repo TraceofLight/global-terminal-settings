@@ -9,8 +9,10 @@
 - 터미널: `WezTerm`
 - 기본 인터랙티브 셸: `MSYS2 UCRT64 bash`
 - 보조 셸: `pwsh`
-- 폰트: `Monoplex KR Nerd Wide`
-- 테마: `Dracula`
+- 폰트 자산: `Monoplex KR Nerd Wide`
+- WezTerm font family: `Monoplex KR Nerd`
+- 테마: `Catppuccin Mocha`
+- 배경 스타일: `window_background_opacity = 0.8` + `win32_system_backdrop = "Acrylic"`
 - 편집기: `Neovim` + 현재 로컬 `LazyVim`
 
 ## Implemented Flow
@@ -24,6 +26,11 @@
 7. `shared/nvim/`을 `%LOCALAPPDATA%\\nvim`으로 링크하거나 복사한다.
 8. `%USERPROFILE%\\.bashrc`, `%USERPROFILE%\\.bash_profile`에 managed block을 추가해 `shared/shell/aliases.sh`를 source 하도록 만든다.
 9. PowerShell 프로필에 managed block을 추가해 `shared/shell/aliases.ps1`를 dot-source 하도록 만든다.
+
+실제 기본 원칙:
+
+- WezTerm이 `HOME=%USERPROFILE%`를 `MSYS2 bash`에 넘긴다.
+- 따라서 `.bashrc`, `.bash_profile`, `.config/terminal-bootstrap`의 기준점은 Windows 홈 하나로 고정된다.
 
 ## Entry Point
 
@@ -44,6 +51,10 @@ pwsh -NoProfile -File .\windows\install.ps1 -DryRun
 - 기본 방향은 `MSYS2 bash`를 셸로 쓰되, 대부분의 CLI는 Windows 네이티브 패키지로 설치한다.
 - `wezterm.lua`가 `MSYS2_PATH_TYPE=inherit`를 설정하므로, 네이티브 설치된 도구가 `MSYS2 bash`에서 그대로 보인다.
 - `MSYS2`는 셸 환경과 유닉스식 UX를 담당하고, 도구 전체를 `pacman`으로 다시 설치하는 단계는 아직 범위 밖이다.
+- `winget`이 있는 패키지는 `winget`을 우선 사용한다.
+- `choco`는 `winget`에 없는 패키지에만 fallback으로 사용한다.
+- 비관리자 환경에서 `choco`가 필요한 optional 패키지는 전체 설치를 멈추지 않고 warning 후 건너뛴다.
+- `btop4win`은 Windows 패키지명이지만 셸 UX에서는 `btop` alias로 노출한다.
 
 ## Shell Integration Policy
 
@@ -74,6 +85,12 @@ pwsh -NoProfile -File .\windows\install.ps1 -DryRun
 
 `Auto` 모드는 링크를 먼저 시도하고 실패하면 복사로 떨어진다.
 
+추가 원칙:
+
+- 스테이징 디렉터리(`~/.config/terminal-bootstrap`) 아래 디렉터리는 링크를 우선한다.
+- `.wezterm.lua`, `starship.toml`, `wezterm-shell-integration.sh` 같은 파일 타깃은 비관리자 Windows에서 copy fallback이 정상 동작이다.
+- 따라서 설정을 수정한 뒤 파일 타깃 반영이 필요하면 설치 스크립트를 다시 실행해 재동기화한다.
+
 ## Tool Ownership
 
 - 시스템 설치기: `winget`, `choco`, 공식 설치 파일 중 하나
@@ -95,3 +112,4 @@ pwsh -NoProfile -File .\windows\install.ps1 -DryRun
 - Windows에서는 `Mason`이 외부 도구 설치에 `pwsh` 또는 `powershell`을 요구할 수 있다.
 - 따라서 일상 셸은 `bash`여도 `pwsh`는 보조 경로로 남겨두는 편이 안전하다.
 - 폰트는 OS 전역 설치가 아니라 `WezTerm`의 `font_dirs`에서 직접 읽는다.
+- PowerShell 공유 alias는 세션 시작 시 Machine/User PATH를 다시 합쳐서 `starship`, `zoxide` 같은 사용자 설치 바이너리를 바로 인식하게 한다.

@@ -1,62 +1,67 @@
-palette = "dracula"
+palette = "catppuccin_mocha"
 add_newline = false
+"$schema" = "https://starship.rs/config-schema.json"
 
 format = """
-$username\
+[](mauve)\
 $directory\
+[](fg:mauve bg:blue)\
 $git_branch\
 $git_status\
-$nodejs\
-$time\
-$line_break\
+[](fg:blue) \
+$cmd_duration\
 $character
 """
 
-[palettes.dracula]
-background = "#282a36"
-current_line = "#44475a"
-foreground = "#f8f8f2"
-comment = "#6272a4"
-cyan = "#8be9fd"
-green = "#50fa7b"
-orange = "#ffb86c"
-pink = "#ff79c6"
-purple = "#bd93f9"
-red = "#ff5555"
-yellow = "#f1fa8c"
-
-[username]
-show_always = true
-style_user = "bold cyan"
-style_root = "bold red"
-format = "[ $user ]($style)"
+[palettes.catppuccin_mocha]
+rosewater = "#f5e0dc"
+flamingo = "#f2cdcd"
+pink = "#f5c2e7"
+mauve = "#cba6f7"
+red = "#f38ba8"
+maroon = "#eba0ac"
+peach = "#fab387"
+yellow = "#f9e2af"
+green = "#a6e3a1"
+teal = "#94e2d5"
+sky = "#89dceb"
+sapphire = "#74c7ec"
+blue = "#89b4fa"
+lavender = "#b4befe"
+text = "#cdd6f4"
+subtext1 = "#bac2de"
+subtext0 = "#a6adc8"
+overlay2 = "#9399b2"
+overlay1 = "#7f849c"
+overlay0 = "#6c7086"
+surface2 = "#585b70"
+surface1 = "#45475a"
+surface0 = "#313244"
+base = "#1e1e2e"
+mantle = "#181825"
+crust = "#11111b"
 
 [directory]
-style = "bold green"
+style = "bg:mauve fg:crust"
 format = "[ $path ]($style)"
-truncate_to_repo = false
-truncation_length = 4
+truncation_length = 3
+truncation_symbol = "…/"
 
 [git_branch]
-symbol = ""
-style = "bold pink"
-format = "[ $symbol $branch ]($style)"
+symbol = " "
+style = "bg:blue"
+format = "[[ $symbol$branch ](fg:crust bg:blue)]($style)"
 
 [git_status]
-style = "bold red"
-format = "[ $all_status$ahead_behind ]($style)"
+style = "bg:blue"
+format = "[[($all_status$ahead_behind )](fg:crust bg:blue)]($style)"
 
-[nodejs]
-style = "bold purple"
-format = "[ $symbol $version ]($style)"
-
-[time]
-disabled = false
-time_format = "%H:%M"
-style = "bold yellow"
-format = "[ ♥ $time ]($style)"
+[cmd_duration]
+min_time = 2000
+style = "fg:overlay1"
+format = "[ 󱎫 $duration]($style) "
 
 [character]
-success_symbol = "[>](bold green)"
-error_symbol = "[>](bold red)"
-vimcmd_symbol = "[<](bold cyan)"
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[<](bold sapphire)"
