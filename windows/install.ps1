@@ -242,6 +242,51 @@ function Refresh-SessionPath {
     $env:Path = ($machinePath, $userPath -join ';')
 }
 
+function Get-Msys2BashPath {
+    $path = Resolve-EnvironmentPath '%SystemDrive%\msys64\usr\bin\bash.exe'
+    if (Test-Path -LiteralPath $path) {
+        return $path
+    }
+    return $null
+}
+
+function Test-Msys2PackageInstalled {
+    param([string]$Package)
+
+    $bash = Get-Msys2BashPath
+    if (-not $bash) {
+        return $false
+    }
+
+    & $bash -lc "pacman -Qi $Package >/dev/null 2>&1"
+    return $LASTEXITCODE -eq 0
+}
+
+function Install-Msys2Package {
+    param([string]$Package)
+
+    if (Test-Msys2PackageInstalled $Package) {
+        Write-Host "skip  MSYS2 package already installed: $Package"
+        return
+    }
+
+    $bash = Get-Msys2BashPath
+    if (-not $bash) {
+        if ($DryRun) {
+            Write-Host "[dry-run] Install MSYS2 package $Package" -ForegroundColor Yellow
+            return
+        }
+        throw "MSYS2 bash not found. Cannot install MSYS2 package: $Package"
+    }
+
+    Invoke-Action "Install MSYS2 package $Package" {
+        & $bash -lc "pacman -S --needed --noconfirm $Package"
+        if ($LASTEXITCODE -ne 0) {
+            throw "pacman install failed for $Package"
+        }
+    }
+}
+
 function Install-Package {
     param($Spec)
 
@@ -297,6 +342,8 @@ function Install-Packages {
     foreach ($spec in $script:PackageSpecs) {
         Install-Package $spec
     }
+
+    Install-Msys2Package 'tmux'
 }
 
 function Sync-StagedAssets {
@@ -306,6 +353,7 @@ function Sync-StagedAssets {
         @{ Source = Join-Path $script:SourceRoot 'fonts'; Target = Join-Path $script:InstallRoot 'fonts' },
         @{ Source = Join-Path $script:SourceRoot 'shell'; Target = Join-Path $script:InstallRoot 'shell' },
         @{ Source = Join-Path $script:SourceRoot 'starship'; Target = Join-Path $script:InstallRoot 'starship' },
+        @{ Source = Join-Path $script:SourceRoot 'tmux'; Target = Join-Path $script:InstallRoot 'tmux' },
         @{ Source = Join-Path $script:SourceRoot 'wezterm'; Target = Join-Path $script:InstallRoot 'wezterm' },
         @{ Source = Join-Path $script:SourceRoot 'nvim'; Target = Join-Path $script:InstallRoot 'nvim' }
     )
@@ -324,6 +372,7 @@ function Sync-AppConfigs {
     Sync-Target -Source (Join-Path $script:InstallRoot 'wezterm\wezterm.lua') -Target (Join-Path $HOME '.wezterm.lua')
     Sync-Target -Source (Join-Path $script:InstallRoot 'wezterm\wezterm-shell-integration.sh') -Target (Join-Path $weztermConfigRoot 'wezterm-shell-integration.sh')
     Sync-Target -Source (Join-Path $script:InstallRoot 'starship\starship.toml') -Target (Join-Path $HOME '.config\starship.toml')
+    Sync-Target -Source (Join-Path $script:InstallRoot 'tmux\.tmux.conf') -Target (Join-Path $HOME '.tmux.conf')
     Sync-Target -Source (Join-Path $script:InstallRoot 'nvim') -Target (Join-Path $env:LOCALAPPDATA 'nvim')
 }
 

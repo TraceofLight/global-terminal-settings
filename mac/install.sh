@@ -176,6 +176,7 @@ stage_assets() {
   sync_target "$SOURCE_ROOT/fonts" "$INSTALL_ROOT/fonts"
   sync_target "$SOURCE_ROOT/shell" "$INSTALL_ROOT/shell"
   sync_target "$SOURCE_ROOT/starship" "$INSTALL_ROOT/starship"
+  sync_target "$SOURCE_ROOT/tmux" "$INSTALL_ROOT/tmux"
   sync_target "$SOURCE_ROOT/wezterm" "$INSTALL_ROOT/wezterm"
   sync_target "$SOURCE_ROOT/nvim" "$INSTALL_ROOT/nvim"
 }
@@ -188,6 +189,7 @@ sync_app_configs() {
   sync_target "$INSTALL_ROOT/wezterm/wezterm.lua" "$HOME/.wezterm.lua"
   sync_target "$INSTALL_ROOT/wezterm/wezterm-shell-integration.sh" "$CONFIG_ROOT/wezterm/wezterm-shell-integration.sh"
   sync_target "$INSTALL_ROOT/starship/starship.toml" "$CONFIG_ROOT/starship.toml"
+  sync_target "$INSTALL_ROOT/tmux/.tmux.conf" "$HOME/.tmux.conf"
   sync_target "$INSTALL_ROOT/nvim" "$CONFIG_ROOT/nvim"
 }
 

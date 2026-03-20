@@ -8,6 +8,7 @@
 
 - 터미널: `WezTerm`
 - 기본 셸: `zsh`
+- 기본 내부 세션 도구: `tmux`
 - 폰트: `Monoplex KR Nerd Wide`
 - 테마: `Catppuccin Mocha`
 - 배경 스타일: `window_background_opacity = 0.8` + `macos_window_background_blur = 20`
@@ -16,14 +17,15 @@
 ## Implemented Flow
 
 1. Homebrew 존재 여부를 확인한다.
-2. `mac/Brewfile` 기준으로 `brew bundle`을 수행한다.
+2. `mac/Brewfile` 기준으로 `brew bundle`을 수행하고, 이때 `tmux`도 함께 설치한다.
 3. 공통 자산을 `~/.config/terminal-bootstrap` 아래로 스테이징한다.
 4. `shared/fonts/MonoplexKRWideNerd`는 OS 전역 폰트 디렉터리가 아니라 스테이징 루트의 `fonts/` 아래에 유지한다.
 5. `shared/wezterm/wezterm.lua`를 `~/.wezterm.lua`로 링크하거나 복사한다.
 6. `shared/wezterm/wezterm-shell-integration.sh`를 `~/.config/wezterm/wezterm-shell-integration.sh`로 링크하거나 복사한다.
 7. `shared/starship/starship.toml`를 `~/.config/starship.toml`로 링크하거나 복사한다.
-8. `shared/nvim/`을 `~/.config/nvim`으로 링크하거나 복사한다.
-9. `.zshrc`에 managed block을 추가해 `shared/shell/aliases.sh`를 source 하도록 만든다.
+8. `shared/tmux/.tmux.conf`를 `~/.tmux.conf`로 링크하거나 복사한다.
+9. `shared/nvim/`을 `~/.config/nvim`으로 링크하거나 복사한다.
+10. `.zshrc`에 managed block을 추가해 `shared/shell/aliases.sh`를 source 하도록 만든다.
 
 ## Entry Point
 
@@ -68,6 +70,7 @@
 
 - 패키지 목록은 `mac/Brewfile`이 기준이다.
 - CLI 도구는 Homebrew가 책임지고, 프롬프트/셸 UX 자산은 `shared/` 스테이징이 책임진다.
+- `tmux`는 Homebrew 기본 설치 대상이고, 설정은 `shared/tmux/.tmux.conf`가 책임진다.
 - 폰트는 OS 전역 설치가 아니라 `WezTerm`의 `font_dirs`에서 직접 읽는다.
 
 ## Why Keep zsh On mac
@@ -80,3 +83,10 @@
 
 - mac에서는 현재 로컬 `LazyVim` 설정을 그대로 가져오되, 바이너리와 캐시는 새 환경에서 다시 생성한다.
 - 필요시 나중에 `Mason` 자동 설치 목록을 별도로 정리할 수 있다.
+
+## tmux On mac
+
+- `tmux`는 mac에서도 기본 설치/기본 세팅 대상이다.
+- 다만 기본 로컬 UI는 여전히 `WezTerm` 탭/패널이다.
+- 즉, `tmux`를 자동 attach 하지는 않고 필요할 때만 `tmux new -As main` 같은 명령으로 들어간다.
+- 창/분할 사용법과 운영 원칙은 Windows와 동일하게 가져간다.
