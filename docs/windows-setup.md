@@ -9,7 +9,7 @@ This document defines the Windows baseline produced by the `terminal-bootstrap` 
 - Prompt: `Starship`
 - Navigation: `zoxide`, `fzf`
 - Editor: `Neovim + LazyVim`
-- Font: `Monoplex KR Nerd Wide`
+- Font: `Monoplex KR Wide Nerd`
 - Theme: `Catppuccin Mocha`
 - Background style: `window_background_opacity = 0.8` + `win32_system_backdrop = "Acrylic"`
 

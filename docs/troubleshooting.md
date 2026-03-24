@@ -34,7 +34,7 @@ Cause:
 
 Actions:
 
-- Confirm that [shared/nushell/config.nu](D:/Projects/Github/global-terminal-settings/shared/nushell/config.nu) keeps `shell_integration.osc133 = false`
+- Confirm that [shared/nushell/config.nu](../shared/nushell/config.nu) keeps `shell_integration.osc133 = false`
 - Fully restart both WezTerm and the NuShell session after changing the config
 - The repository baseline keeps `osc133` off while leaving the rest of the terminal integration in place
 
@@ -50,6 +50,7 @@ Actions:
 
 - Re-run the installer to regenerate the autoload files
 - Confirm that the package manager installed the underlying CLIs
+- On macOS, confirm that [shared/nushell/env.nu](../shared/nushell/env.nu) prepends the common Homebrew bin directories before fully restarting WezTerm
 
 ## Font Does Not Appear In WezTerm
 
@@ -62,6 +63,7 @@ Check:
 Actions:
 
 - Keep the `font_with_fallback` candidates intact
+- The managed family name is `Monoplex KR Wide Nerd`
 - Confirm that at least the `Regular`, `Bold`, and `Italic` variants were staged
 - Use `wezterm ls-fonts` to inspect actual font discovery
 

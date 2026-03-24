@@ -10,7 +10,7 @@ This document defines what must stay consistent between Windows and macOS, and w
 - The color direction is `Catppuccin Mocha`
 - The baseline background style uses `window_background_opacity = 0.8`
 - Windows uses `Acrylic`; macOS uses blur `20`
-- The default font is `Monoplex KR Nerd Wide`
+- The default font is `Monoplex KR Wide Nerd`
 - `vi` and `vim` resolve to `nvim`
 - `EDITOR` and `VISUAL` are both `nvim`
 - Shared navigation tools are `rg`, `fd`, `fzf`, and `zoxide`

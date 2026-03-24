@@ -29,9 +29,9 @@ config.font_dirs = {
 }
 
 config.font = wezterm.font_with_fallback({
-  "Monoplex KR Nerd",
-  "MonoplexKRNerd",
-  "JetBrainsMono Nerd Font",
+  "Monoplex KR Wide Nerd",
+  "JetBrains Mono",
+  "Symbols Nerd Font Mono",
 })
 
 config.window_padding = {

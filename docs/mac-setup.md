@@ -9,14 +9,14 @@ This document defines the macOS baseline produced by the `terminal-bootstrap` re
 - Prompt: `Starship`
 - Navigation: `zoxide`, `fzf`
 - Editor: `Neovim + LazyVim`
-- Font: `Monoplex KR Nerd Wide`
+- Font: `Monoplex KR Wide Nerd`
 - Theme: `Catppuccin Mocha`
 - Background style: `window_background_opacity = 0.8` + `macos_window_background_blur = 20`
 
 ## Entry Point
 
 ```bash
-./mac/install.sh --dry-run
+bash ./mac/install.sh --dry-run
 ```
 
 Primary options:
@@ -119,3 +119,4 @@ Why copy is allowed:
 - The macOS baseline is also defined around `NuShell`; other shell profile files are out of scope
 - Homebrew remains the installer and package source, not the daily interactive shell baseline
 - On macOS, WezTerm checks the common Homebrew `NuShell` install paths first and falls back to `nu` by name
+- The managed `env.nu` prepends the common Homebrew bin directories so GUI-launched WezTerm sessions can still find brew-installed CLIs

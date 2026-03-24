@@ -76,7 +76,7 @@ pwsh -NoProfile -File .\windows\install.ps1 -DryRun
 **Verification command:**
 
 ```bash
-./mac/install.sh --dry-run
+bash ./mac/install.sh --dry-run
 ```
 
 ### Task 5: Keep Documentation Aligned With The Current Baseline
@@ -112,7 +112,7 @@ pwsh -NoProfile -File .\windows\install.ps1 -DryRun
 Run a repository grep for legacy shell references while excluding this plan document itself.
 
 ```bash
-./mac/install.sh --dry-run
+bash ./mac/install.sh --dry-run
 ```
 
 **Manual smoke tests:**

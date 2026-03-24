@@ -6,7 +6,7 @@ This repository bootstraps a shared `WezTerm + NuShell + Starship + zoxide + fzf
 
 - Provide a shared terminal UX built on `WezTerm`
 - Use `NuShell` as the default interactive shell
-- Keep a consistent visual baseline with `Catppuccin Mocha` and `Monoplex KR Nerd Wide`
+- Keep a consistent visual baseline with `Catppuccin Mocha` and `Monoplex KR Wide Nerd`
 - Preserve the current workflow around `Starship`, `zoxide`, `fzf`, `rg`, `fd`, `git`, and `lazygit`
 - Treat the current local `LazyVim` setup as a managed asset
 - Keep Windows and macOS installation guides aligned to the same stage structure
