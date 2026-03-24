@@ -3,11 +3,6 @@ local wezterm = require("wezterm")
 local config = wezterm.config_builder()
 local bootstrap_dir = wezterm.home_dir .. "/.config/terminal-bootstrap"
 
-local function file_exists(path)
-  local ok, _, code = os.rename(path, path)
-  return ok or code == 13
-end
-
 config.adjust_window_size_when_changing_font_size = false
 config.automatically_reload_config = true
 config.use_fancy_tab_bar = false
@@ -53,25 +48,14 @@ if wezterm.target_triple:find("windows") then
   local windows_home = wezterm.home_dir:gsub("\\", "/")
   config.win32_system_backdrop = "Acrylic"
   config.set_environment_variables = {
-    CHERE_INVOKING = "1",
-    MSYS2_PATH_TYPE = "inherit",
     HOME = windows_home,
   }
-  local system_drive = os.getenv("SystemDrive") or "C:"
-  local msys2_shell = system_drive .. "/msys64/msys2_shell.cmd"
-  local msys2_bash = system_drive .. "/msys64/usr/bin/bash.exe"
-  if file_exists(msys2_shell) then
-    config.default_prog = { msys2_shell, "-defterm", "-here", "-no-start", "-ucrt64" }
-  elseif file_exists(msys2_bash) then
-    config.default_prog = { msys2_bash, "--login", "-i" }
-  else
-    config.default_prog = { "pwsh.exe", "-NoLogo" }
-  end
+  config.default_prog = { "nu.exe", "-l" }
 else
   if wezterm.target_triple:find("darwin") then
     config.macos_window_background_blur = 20
   end
-  config.default_prog = { "/bin/zsh", "-l" }
+  config.default_prog = { "nu", "-l" }
 end
 
 return config

@@ -4,24 +4,28 @@ param(
     [string]$SyncMode = 'Auto',
     [switch]$DryRun,
     [switch]$SkipPackages,
-    [switch]$SkipConfigs,
-    [switch]$SkipShellProfiles
+    [switch]$SkipConfigs
 )
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
+$manifest = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'packages.psd1')
 $script:BootstrapRoot = Split-Path -Parent $PSScriptRoot
 $script:SourceRoot = Join-Path $script:BootstrapRoot 'shared'
 $script:InstallRoot = Join-Path $HOME '.config\terminal-bootstrap'
 $script:Timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$script:PackageSpecs = (Import-PowerShellDataFile (Join-Path $PSScriptRoot 'packages.psd1')).Packages
-$script:IsAdministrator = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$script:PackageSpecs = $manifest.Packages
+$script:DefaultNushellConfigRoot = Join-Path $env:APPDATA 'nushell'
 
-function Write-Section {
-    param([string]$Title)
+function Write-Stage {
+    param(
+        [int]$Number,
+        [string]$Title
+    )
+
     Write-Host ""
-    Write-Host "== $Title ==" -ForegroundColor Cyan
+    Write-Host "== $Number. $Title ==" -ForegroundColor Cyan
 }
 
 function Invoke-Action {
@@ -41,31 +45,8 @@ function Invoke-Action {
 
 function Get-CanonicalPath {
     param([string]$Path)
+
     return [System.IO.Path]::GetFullPath($Path)
-}
-
-function Resolve-SourceItemPath {
-    param([string]$Source)
-
-    $sourcePath = Get-CanonicalPath $Source
-    if (Test-Path -LiteralPath $sourcePath) {
-        return $sourcePath
-    }
-
-    if (-not $DryRun) {
-        throw "Managed source does not exist: $sourcePath"
-    }
-
-    $installRootPath = (Get-CanonicalPath $script:InstallRoot).TrimEnd('\')
-    if ($sourcePath.StartsWith($installRootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
-        $relative = $sourcePath.Substring($installRootPath.Length).TrimStart('\')
-        $fallback = Join-Path $script:SourceRoot $relative
-        if (Test-Path -LiteralPath $fallback) {
-            return (Get-CanonicalPath $fallback)
-        }
-    }
-
-    throw "Managed source does not exist: $sourcePath"
 }
 
 function Resolve-EnvironmentPath {
@@ -80,6 +61,7 @@ function Resolve-EnvironmentPath {
 
 function Ensure-Directory {
     param([string]$Path)
+
     if (Test-Path -LiteralPath $Path) {
         return
     }
@@ -150,6 +132,16 @@ function Sync-Target {
     )
 
     $sourcePath = Get-CanonicalPath $Source
+    if (-not (Test-Path -LiteralPath $sourcePath) -and $DryRun) {
+        $installRootPath = (Get-CanonicalPath $script:InstallRoot).TrimEnd('\')
+        if ($sourcePath.StartsWith($installRootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $relative = $sourcePath.Substring($installRootPath.Length).TrimStart('\')
+            $fallback = Join-Path $script:SourceRoot $relative
+            if (Test-Path -LiteralPath $fallback) {
+                $sourcePath = Get-CanonicalPath $fallback
+            }
+        }
+    }
     Ensure-Directory (Split-Path -Parent $Target)
 
     if (Test-ManagedTarget -Target $Target -ExpectedSource $sourcePath) {
@@ -161,8 +153,7 @@ function Sync-Target {
         Backup-Target $Target
     }
 
-    $sourceItemPath = Resolve-SourceItemPath $sourcePath
-    $sourceItem = Get-Item -LiteralPath $sourceItemPath -Force
+    $sourceItem = Get-Item -LiteralPath $sourcePath -Force
     $effectiveMode = if ($SyncMode -eq 'Auto') { 'Link' } else { $SyncMode }
 
     if ($effectiveMode -eq 'Link') {
@@ -191,32 +182,6 @@ function Sync-Target {
     }
 }
 
-function Ensure-ManagedBlock {
-    param(
-        [string]$Path,
-        [string]$BeginMarker,
-        [string]$EndMarker,
-        [string]$Block
-    )
-
-    $existing = if (Test-Path -LiteralPath $Path) { Get-Content -LiteralPath $Path -Raw } else { '' }
-    $pattern = '(?s)' + [regex]::Escape($BeginMarker) + '.*?' + [regex]::Escape($EndMarker)
-    $managed = "$BeginMarker`r`n$Block`r`n$EndMarker"
-
-    if ($existing -match $pattern) {
-        $updated = [regex]::Replace($existing, $pattern, $managed)
-    } elseif ([string]::IsNullOrWhiteSpace($existing)) {
-        $updated = $managed + "`r`n"
-    } else {
-        $updated = $existing.TrimEnd() + "`r`n`r`n" + $managed + "`r`n"
-    }
-
-    Ensure-Directory (Split-Path -Parent $Path)
-    Invoke-Action "Write managed block in $Path" {
-        Set-Content -LiteralPath $Path -Value $updated
-    }
-}
-
 function Test-PackageInstalled {
     param($Spec)
 
@@ -237,203 +202,174 @@ function Test-PackageInstalled {
 }
 
 function Refresh-SessionPath {
-    $machinePath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine')
-    $userPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
-    $env:Path = ($machinePath, $userPath -join ';')
+    $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $env:Path = ($machinePath, $userPath) -join ';'
 }
 
-function Get-Msys2BashPath {
-    $path = Resolve-EnvironmentPath '%SystemDrive%\msys64\usr\bin\bash.exe'
-    if (Test-Path -LiteralPath $path) {
-        return $path
-    }
-    return $null
-}
-
-function Test-Msys2PackageInstalled {
-    param([string]$Package)
-
-    $bash = Get-Msys2BashPath
-    if (-not $bash) {
-        return $false
-    }
-
-    & $bash -lc "pacman -Qi $Package >/dev/null 2>&1"
-    return $LASTEXITCODE -eq 0
-}
-
-function Install-Msys2Package {
-    param([string]$Package)
-
-    if (Test-Msys2PackageInstalled $Package) {
-        Write-Host "skip  MSYS2 package already installed: $Package"
-        return
-    }
-
-    $bash = Get-Msys2BashPath
-    if (-not $bash) {
-        if ($DryRun) {
-            Write-Host "[dry-run] Install MSYS2 package $Package" -ForegroundColor Yellow
-            return
-        }
-        throw "MSYS2 bash not found. Cannot install MSYS2 package: $Package"
-    }
-
-    Invoke-Action "Install MSYS2 package $Package" {
-        & $bash -lc "pacman -S --needed --noconfirm $Package"
-        if ($LASTEXITCODE -ne 0) {
-            throw "pacman install failed for $Package"
+function Get-NushellConfigRoot {
+    if (Get-Command nu -ErrorAction SilentlyContinue) {
+        $nuRoot = & nu -n -c '$nu.default-config-dir' 2>$null
+        if (-not [string]::IsNullOrWhiteSpace($nuRoot)) {
+            return $nuRoot.Trim()
         }
     }
+
+    return $script:DefaultNushellConfigRoot
 }
 
 function Install-Package {
     param($Spec)
 
     if (Test-PackageInstalled $Spec) {
-        Write-Host "skip  package already installed: $($Spec.Name)"
+        Write-Host "skip  Package already installed: $($Spec.Name)"
         return
     }
 
-    if ($Spec.ContainsKey('WingetId') -and $Spec.WingetId -and (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Invoke-Action "Install $($Spec.Name) via winget ($($Spec.WingetId))" {
-            & winget install --exact --id $Spec.WingetId --source winget --accept-package-agreements --accept-source-agreements --disable-interactivity
-            if ($LASTEXITCODE -ne 0) {
-                throw "winget install failed for $($Spec.Name)"
-            }
+    $installed = $false
+
+    if ($Spec.ContainsKey('WingetId') -and $Spec.WingetId) {
+        Invoke-Action "Install $($Spec.Name) with winget" {
+            winget install --id $Spec.WingetId --exact --accept-package-agreements --accept-source-agreements --silent --disable-interactivity
         }
         Refresh-SessionPath
-        return
-    }
-
-    if ($Spec.ContainsKey('RequiresAdmin') -and $Spec.RequiresAdmin -and -not $script:IsAdministrator) {
-        $message = "skip  package requires administrator rights in this environment: $($Spec.Name)"
-        if ($Spec.ContainsKey('Optional') -and $Spec.Optional) {
-            Write-Warning $message
-            return
+        if (Test-PackageInstalled $Spec) {
+            $installed = $true
         }
-        throw $message
     }
 
-    if ($Spec.ContainsKey('Chocolatey') -and $Spec.Chocolatey -and (Get-Command choco -ErrorAction SilentlyContinue)) {
-        try {
-            Invoke-Action "Install $($Spec.Name) via choco ($($Spec.Chocolatey))" {
-                & choco install $Spec.Chocolatey -y --no-progress
-                if ($LASTEXITCODE -ne 0) {
-                    throw "choco install failed for $($Spec.Name)"
-                }
-            }
-            Refresh-SessionPath
-            return
-        } catch {
+    if (-not $installed -and $Spec.ContainsKey('Chocolatey') -and $Spec.Chocolatey) {
+        if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
             if ($Spec.ContainsKey('Optional') -and $Spec.Optional) {
-                Write-Warning "Optional package install failed: $($Spec.Name). $_"
+                Write-Warning "Chocolatey is not available. Skipping optional package: $($Spec.Name)"
                 return
             }
-            throw
+
+            throw "Chocolatey is required for package $($Spec.Name) but is not available."
+        }
+
+        if (($Spec.ContainsKey('RequiresAdmin') -and $Spec.RequiresAdmin) -and -not ([bool]([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))) {
+            if ($Spec.ContainsKey('Optional') -and $Spec.Optional) {
+                Write-Warning "Administrator privileges required for optional package: $($Spec.Name). Skipping."
+                return
+            }
+
+            throw "Administrator privileges required for package $($Spec.Name)."
+        }
+
+        Invoke-Action "Install $($Spec.Name) with choco" {
+            choco install $Spec.Chocolatey -y --no-progress
+        }
+        Refresh-SessionPath
+        if (Test-PackageInstalled $Spec) {
+            $installed = $true
         }
     }
 
-    throw "No installer available for $($Spec.Name)"
+    if (-not $installed -and -not $DryRun) {
+        throw "Failed to install package: $($Spec.Name)"
+    }
 }
 
 function Install-Packages {
-    Write-Section 'Packages'
+    Write-Stage 2 'Core Packages'
+
     foreach ($spec in $script:PackageSpecs) {
         Install-Package $spec
     }
-
-    Install-Msys2Package 'tmux'
 }
 
-function Sync-StagedAssets {
-    Write-Section 'Stage Managed Assets'
+function Stage-Assets {
+    Write-Stage 3 'Stage Managed Assets'
 
-    $mappings = @(
-        @{ Source = Join-Path $script:SourceRoot 'fonts'; Target = Join-Path $script:InstallRoot 'fonts' },
-        @{ Source = Join-Path $script:SourceRoot 'shell'; Target = Join-Path $script:InstallRoot 'shell' },
-        @{ Source = Join-Path $script:SourceRoot 'starship'; Target = Join-Path $script:InstallRoot 'starship' },
-        @{ Source = Join-Path $script:SourceRoot 'tmux'; Target = Join-Path $script:InstallRoot 'tmux' },
-        @{ Source = Join-Path $script:SourceRoot 'wezterm'; Target = Join-Path $script:InstallRoot 'wezterm' },
-        @{ Source = Join-Path $script:SourceRoot 'nvim'; Target = Join-Path $script:InstallRoot 'nvim' }
-    )
+    Sync-Target -Source (Join-Path $script:SourceRoot 'fonts') -Target (Join-Path $script:InstallRoot 'fonts')
+    Sync-Target -Source (Join-Path $script:SourceRoot 'nushell') -Target (Join-Path $script:InstallRoot 'nushell')
+    Sync-Target -Source (Join-Path $script:SourceRoot 'starship') -Target (Join-Path $script:InstallRoot 'starship')
+    Sync-Target -Source (Join-Path $script:SourceRoot 'wezterm') -Target (Join-Path $script:InstallRoot 'wezterm')
+    Sync-Target -Source (Join-Path $script:SourceRoot 'nvim') -Target (Join-Path $script:InstallRoot 'nvim')
+}
 
-    foreach ($mapping in $mappings) {
-        Sync-Target -Source $mapping.Source -Target $mapping.Target
+function Initialize-NuAutoload {
+    Write-Stage 6 'Starship, zoxide, fzf'
+
+    $autoloadRoot = Join-Path (Get-NushellConfigRoot) 'autoload'
+    Ensure-Directory $autoloadRoot
+
+    $starshipTarget = Join-Path $autoloadRoot 'starship.nu'
+    $zoxideTarget = Join-Path $autoloadRoot 'zoxide.nu'
+
+    if (Get-Command starship -ErrorAction SilentlyContinue) {
+        Invoke-Action "Generate NuShell Starship autoload" {
+            & starship init nu | Set-Content -LiteralPath $starshipTarget
+        }
+    } else {
+        Write-Warning 'starship command not found. Skipping NuShell Starship autoload generation.'
+    }
+
+    if (Get-Command zoxide -ErrorAction SilentlyContinue) {
+        Invoke-Action "Generate NuShell zoxide autoload" {
+            & zoxide init nushell | Set-Content -LiteralPath $zoxideTarget
+        }
+    } else {
+        Write-Warning 'zoxide command not found. Skipping NuShell zoxide autoload generation.'
     }
 }
 
 function Sync-AppConfigs {
-    Write-Section 'Application Config Targets'
+    Write-Stage 4 'Wire WezTerm'
 
-    $weztermConfigRoot = Join-Path $HOME '.config\wezterm'
+    $configRoot = Join-Path $HOME '.config'
+    $weztermConfigRoot = Join-Path $configRoot 'wezterm'
+    $starshipTarget = Join-Path $configRoot 'starship.toml'
+    $nvimTarget = Join-Path $env:LOCALAPPDATA 'nvim'
+    $nushellConfigRoot = Get-NushellConfigRoot
+    $autoloadTargetRoot = Join-Path $nushellConfigRoot 'autoload'
+
+    Ensure-Directory $configRoot
     Ensure-Directory $weztermConfigRoot
+    Ensure-Directory $nushellConfigRoot
+    Ensure-Directory $autoloadTargetRoot
 
     Sync-Target -Source (Join-Path $script:InstallRoot 'wezterm\wezterm.lua') -Target (Join-Path $HOME '.wezterm.lua')
-    Sync-Target -Source (Join-Path $script:InstallRoot 'wezterm\wezterm-shell-integration.sh') -Target (Join-Path $weztermConfigRoot 'wezterm-shell-integration.sh')
-    Sync-Target -Source (Join-Path $script:InstallRoot 'starship\starship.toml') -Target (Join-Path $HOME '.config\starship.toml')
-    Sync-Target -Source (Join-Path $script:InstallRoot 'tmux\.tmux.conf') -Target (Join-Path $HOME '.tmux.conf')
-    Sync-Target -Source (Join-Path $script:InstallRoot 'nvim') -Target (Join-Path $env:LOCALAPPDATA 'nvim')
+    Sync-Target -Source (Join-Path $script:InstallRoot 'starship\starship.toml') -Target $starshipTarget
+
+    Write-Stage 5 'Wire NuShell'
+    Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\config.nu') -Target (Join-Path $nushellConfigRoot 'config.nu')
+    Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\env.nu') -Target (Join-Path $nushellConfigRoot 'env.nu')
+    Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\login.nu') -Target (Join-Path $nushellConfigRoot 'login.nu')
+    Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\autoload\wezterm-integration.nu') -Target (Join-Path $autoloadTargetRoot 'wezterm-integration.nu')
+
+    $script:NvimTarget = $nvimTarget
 }
 
-function Update-ShellProfiles {
-    Write-Section 'Shell Profiles'
+function Sync-NvimConfig {
+    Write-Stage 7 'Sync LazyVim'
 
-    $bashAliasesBlock = @'
-if [ -f "$HOME/.config/terminal-bootstrap/shell/aliases.sh" ]; then
-  . "$HOME/.config/terminal-bootstrap/shell/aliases.sh"
-fi
-'@
-
-    $bashProfileBlock = @'
-if [ -f "$HOME/.bashrc" ]; then
-  . "$HOME/.bashrc"
-fi
-'@
-
-    Ensure-ManagedBlock -Path (Join-Path $HOME '.bashrc') `
-        -BeginMarker '# >>> terminal-bootstrap >>>' `
-        -EndMarker '# <<< terminal-bootstrap <<<' `
-        -Block $bashAliasesBlock
-
-    Ensure-ManagedBlock -Path (Join-Path $HOME '.bash_profile') `
-        -BeginMarker '# >>> terminal-bootstrap-bash-profile >>>' `
-        -EndMarker '# <<< terminal-bootstrap-bash-profile <<<' `
-        -Block $bashProfileBlock
-
-    $pwshProfilePath = $PROFILE.CurrentUserCurrentHost
-    $pwshBlock = @'
-$terminalBootstrapShell = Join-Path $HOME '.config\terminal-bootstrap\shell\aliases.ps1'
-if (Test-Path $terminalBootstrapShell) {
-    . $terminalBootstrapShell
-}
-'@
-
-    Ensure-ManagedBlock -Path $pwshProfilePath `
-        -BeginMarker '# >>> terminal-bootstrap >>>' `
-        -EndMarker '# <<< terminal-bootstrap <<<' `
-        -Block $pwshBlock
+    Sync-Target -Source (Join-Path $script:InstallRoot 'nvim') -Target $script:NvimTarget
 }
 
-Write-Host "terminal-bootstrap Windows installer"
+Write-Host 'terminal-bootstrap windows installer'
 Write-Host "Mode: $SyncMode"
 Write-Host "DryRun: $DryRun"
+
+Write-Stage 1 'Package Manager Readiness'
+if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    throw 'winget is required for the primary Windows install path.'
+}
+if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+    Write-Warning 'Chocolatey is not available. Fallback packages will be skipped or fail if required.'
+}
 
 if (-not $SkipPackages) {
     Install-Packages
 }
 
 if (-not $SkipConfigs) {
-    Sync-StagedAssets
+    Stage-Assets
     Sync-AppConfigs
+    Initialize-NuAutoload
+    Sync-NvimConfig
 }
 
-if (-not $SkipShellProfiles) {
-    Update-ShellProfiles
-}
-
-Write-Host ""
-Write-Host "Windows bootstrap plan complete."
-if ($DryRun) {
-    Write-Host "Dry run only. No package or file changes were applied."
-}
+Write-Stage 8 'Verify'
+Write-Host 'Run `pwsh -NoProfile -File .\windows\install.ps1 -DryRun` to inspect the plan and then launch WezTerm to verify the NuShell entrypoint.'

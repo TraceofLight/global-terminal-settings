@@ -5,7 +5,6 @@ SYNC_MODE="auto"
 DRY_RUN=0
 SKIP_PACKAGES=0
 SKIP_CONFIGS=0
-SKIP_SHELL=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -22,12 +21,9 @@ while [[ $# -gt 0 ]]; do
     --skip-configs)
       SKIP_CONFIGS=1
       ;;
-    --skip-shell)
-      SKIP_SHELL=1
-      ;;
     --help|-h)
       cat <<'EOF'
-Usage: ./install.sh [--dry-run] [--sync-mode auto|link|copy] [--skip-packages] [--skip-configs] [--skip-shell]
+Usage: ./install.sh [--dry-run] [--sync-mode auto|link|copy] [--skip-packages] [--skip-configs]
 EOF
       exit 0
       ;;
@@ -52,10 +48,11 @@ BOOTSTRAP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE_ROOT="$BOOTSTRAP_ROOT/shared"
 CONFIG_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}"
 INSTALL_ROOT="$CONFIG_ROOT/terminal-bootstrap"
+DEFAULT_NUSHELL_ROOT="$HOME/Library/Application Support/nushell"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
-log_section() {
-  printf '\n== %s ==\n' "$1"
+log_stage() {
+  printf '\n== %s. %s ==\n' "$1" "$2"
 }
 
 run_cmd() {
@@ -114,37 +111,6 @@ sync_target() {
   run_cmd "Copy $source -> $target" cp -R "$source" "$target"
 }
 
-ensure_managed_block() {
-  local file="$1"
-  local begin="$2"
-  local end="$3"
-  local block="$4"
-  local tmp
-
-  ensure_dir "$(dirname "$file")"
-  [[ -f "$file" ]] || : > "$file"
-
-  tmp="$(mktemp)"
-  awk -v begin="$begin" -v end="$end" '
-    $0 == begin { skip = 1; next }
-    $0 == end { skip = 0; next }
-    !skip { print }
-  ' "$file" > "$tmp"
-
-  if [[ $DRY_RUN -eq 1 ]]; then
-    printf '[dry-run] Update managed block in %s\n' "$file"
-    rm -f "$tmp"
-    return 0
-  fi
-
-  mv "$tmp" "$file"
-  {
-    printf '\n%s\n' "$begin"
-    printf '%s\n' "$block"
-    printf '%s\n' "$end"
-  } >> "$file"
-}
-
 ensure_homebrew() {
   if command -v brew >/dev/null 2>&1; then
     return 0
@@ -164,50 +130,95 @@ ensure_homebrew() {
   fi
 }
 
+get_nushell_root() {
+  if command -v nu >/dev/null 2>&1; then
+    local nu_root
+    nu_root="$(nu -n -c '$nu.default-config-dir' 2>/dev/null || true)"
+    if [[ -n "$nu_root" ]]; then
+      printf '%s\n' "$nu_root"
+      return 0
+    fi
+  fi
+
+  printf '%s\n' "$DEFAULT_NUSHELL_ROOT"
+}
+
 install_packages() {
-  log_section "Packages"
+  log_stage 2 "Core Packages"
   ensure_homebrew
   run_cmd "brew bundle --file $BOOTSTRAP_ROOT/mac/Brewfile" brew bundle --file "$BOOTSTRAP_ROOT/mac/Brewfile"
 }
 
 stage_assets() {
-  log_section "Stage Managed Assets"
+  log_stage 3 "Stage Managed Assets"
 
   sync_target "$SOURCE_ROOT/fonts" "$INSTALL_ROOT/fonts"
-  sync_target "$SOURCE_ROOT/shell" "$INSTALL_ROOT/shell"
+  sync_target "$SOURCE_ROOT/nushell" "$INSTALL_ROOT/nushell"
   sync_target "$SOURCE_ROOT/starship" "$INSTALL_ROOT/starship"
-  sync_target "$SOURCE_ROOT/tmux" "$INSTALL_ROOT/tmux"
   sync_target "$SOURCE_ROOT/wezterm" "$INSTALL_ROOT/wezterm"
   sync_target "$SOURCE_ROOT/nvim" "$INSTALL_ROOT/nvim"
 }
 
 sync_app_configs() {
-  log_section "Application Config Targets"
+  log_stage 4 "Wire WezTerm"
+  local nushell_root
+  nushell_root="$(get_nushell_root)"
 
   ensure_dir "$CONFIG_ROOT/wezterm"
+  ensure_dir "$nushell_root/autoload"
 
   sync_target "$INSTALL_ROOT/wezterm/wezterm.lua" "$HOME/.wezterm.lua"
-  sync_target "$INSTALL_ROOT/wezterm/wezterm-shell-integration.sh" "$CONFIG_ROOT/wezterm/wezterm-shell-integration.sh"
   sync_target "$INSTALL_ROOT/starship/starship.toml" "$CONFIG_ROOT/starship.toml"
-  sync_target "$INSTALL_ROOT/tmux/.tmux.conf" "$HOME/.tmux.conf"
-  sync_target "$INSTALL_ROOT/nvim" "$CONFIG_ROOT/nvim"
+
+  log_stage 5 "Wire NuShell"
+  sync_target "$INSTALL_ROOT/nushell/config.nu" "$nushell_root/config.nu"
+  sync_target "$INSTALL_ROOT/nushell/env.nu" "$nushell_root/env.nu"
+  sync_target "$INSTALL_ROOT/nushell/login.nu" "$nushell_root/login.nu"
+  sync_target "$INSTALL_ROOT/nushell/autoload/wezterm-integration.nu" "$nushell_root/autoload/wezterm-integration.nu"
+
+  NVIM_TARGET="$CONFIG_ROOT/nvim"
 }
 
-update_shell_profiles() {
-  log_section "Shell Profiles"
+initialize_nushell_autoload() {
+  log_stage 6 "Starship, zoxide, fzf"
+  local nushell_root
+  nushell_root="$(get_nushell_root)"
+  local autoload_root="$nushell_root/autoload"
+  ensure_dir "$autoload_root"
 
-  ensure_managed_block \
-    "$HOME/.zshrc" \
-    '# >>> terminal-bootstrap >>>' \
-    '# <<< terminal-bootstrap <<<' \
-    'if [ -f "$HOME/.config/terminal-bootstrap/shell/aliases.sh" ]; then
-  . "$HOME/.config/terminal-bootstrap/shell/aliases.sh"
-fi'
+  if command -v starship >/dev/null 2>&1; then
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf '[dry-run] Generate NuShell Starship autoload\n'
+    else
+      starship init nu > "$autoload_root/starship.nu"
+    fi
+  else
+    printf 'warn  starship command not found; skipping NuShell Starship autoload generation\n' >&2
+  fi
+
+  if command -v zoxide >/dev/null 2>&1; then
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf '[dry-run] Generate NuShell zoxide autoload\n'
+    else
+      zoxide init nushell > "$autoload_root/zoxide.nu"
+    fi
+  else
+    printf 'warn  zoxide command not found; skipping NuShell zoxide autoload generation\n' >&2
+  fi
+}
+
+sync_nvim_config() {
+  log_stage 7 "Sync LazyVim"
+
+  sync_target "$INSTALL_ROOT/nvim" "$NVIM_TARGET"
 }
 
 printf 'terminal-bootstrap mac installer\n'
 printf 'Mode: %s\n' "$SYNC_MODE"
 printf 'DryRun: %s\n' "$DRY_RUN"
+
+log_stage 1 "Package Manager Readiness"
+ensure_homebrew
 
 if [[ $SKIP_PACKAGES -eq 0 ]]; then
   install_packages
@@ -216,10 +227,9 @@ fi
 if [[ $SKIP_CONFIGS -eq 0 ]]; then
   stage_assets
   sync_app_configs
+  initialize_nushell_autoload
+  sync_nvim_config
 fi
 
-if [[ $SKIP_SHELL -eq 0 ]]; then
-  update_shell_profiles
-fi
-
-printf '\nmac bootstrap plan complete.\n'
+log_stage 8 "Verify"
+printf 'Run ./mac/install.sh --dry-run to inspect the plan and then launch WezTerm to verify the NuShell entrypoint.\n'

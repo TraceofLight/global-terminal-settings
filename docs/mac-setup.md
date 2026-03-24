@@ -1,31 +1,17 @@
-# mac Setup Plan
+# mac Setup
 
-이 문서는 `terminal-bootstrap` 폴더를 기준으로 mac 환경을 재구성하기 위한 운영 문서다.
-
-설치 스크립트는 작성되어 있고, 아직 실제 실행만 하지 않은 상태를 기준으로 적는다.
+이 문서는 `terminal-bootstrap` 저장소만으로 mac 환경을 재구성하는 기준 문서다.
 
 ## Target State
 
 - 터미널: `WezTerm`
-- 기본 셸: `zsh`
-- 기본 내부 세션 도구: `tmux`
+- 기본 인터랙티브 셸: `NuShell`
+- 프롬프트: `Starship`
+- 탐색/이동: `zoxide`, `fzf`
+- 편집기: `Neovim + LazyVim`
 - 폰트: `Monoplex KR Nerd Wide`
 - 테마: `Catppuccin Mocha`
 - 배경 스타일: `window_background_opacity = 0.8` + `macos_window_background_blur = 20`
-- 편집기: `Neovim` + 현재 로컬 `LazyVim`
-
-## Implemented Flow
-
-1. Homebrew 존재 여부를 확인한다.
-2. `mac/Brewfile` 기준으로 `brew bundle`을 수행하고, 이때 `tmux`도 함께 설치한다.
-3. 공통 자산을 `~/.config/terminal-bootstrap` 아래로 스테이징한다.
-4. `shared/fonts/MonoplexKRWideNerd`는 OS 전역 폰트 디렉터리가 아니라 스테이징 루트의 `fonts/` 아래에 유지한다.
-5. `shared/wezterm/wezterm.lua`를 `~/.wezterm.lua`로 링크하거나 복사한다.
-6. `shared/wezterm/wezterm-shell-integration.sh`를 `~/.config/wezterm/wezterm-shell-integration.sh`로 링크하거나 복사한다.
-7. `shared/starship/starship.toml`를 `~/.config/starship.toml`로 링크하거나 복사한다.
-8. `shared/tmux/.tmux.conf`를 `~/.tmux.conf`로 링크하거나 복사한다.
-9. `shared/nvim/`을 `~/.config/nvim`으로 링크하거나 복사한다.
-10. `.zshrc`에 managed block을 추가해 `shared/shell/aliases.sh`를 source 하도록 만든다.
 
 ## Entry Point
 
@@ -39,54 +25,96 @@
 - `--sync-mode auto|link|copy`: 자산 동기화 방식 선택
 - `--skip-packages`: Homebrew 패키지 설치 생략
 - `--skip-configs`: 자산 스테이징과 앱 설정 배치 생략
-- `--skip-shell`: `.zshrc` 수정 생략
 
-## Shell Integration Policy
+## Install Flow
 
-- 대상: `zsh`
-- 방식: WezTerm 공식 `wezterm.sh`를 `~/.config/wezterm/wezterm-shell-integration.sh`로 배치하고, `aliases.sh`에서 조건부 source
+### 1. Package Manager Readiness
 
-효과:
+- 기본 패키지 관리자는 `brew`다.
+- 설치 스크립트는 Homebrew가 없으면 먼저 준비한다.
 
-- 새 탭/분할 시 현재 작업 디렉터리 전달 개선
-- 프롬프트/명령 경계 추적 개선
-- WezTerm workspace/mux 사용감 향상
+### 2. Core Packages
 
-## From The Previous Ghostty-Oriented Setup
+기본 패키지 목록은 [mac/Brewfile](../mac/Brewfile)가 기준이다.
 
-유지:
+주요 패키지:
 
-- Homebrew 중심 설치 방식
-- CLI 도구 묶음
-- `mise`, `zoxide`, `starship`, `lazygit`, `nvim` 중심 워크플로우
+- `wezterm`
+- `nushell`
+- `neovim`
+- `starship`
+- `ripgrep`, `fd`, `fzf`, `zoxide`, `git`, `lazygit`
+- 기타 보조 CLI
 
-제거:
+### 3. Stage Managed Assets
 
-- `Ghostty` 설치 단계
-- `Oh My Zsh`, `Zinit`, `SCM Breeze` 강제
-- AI CLI 설치 단계
+공통 자산은 `~/.config/terminal-bootstrap` 아래로 스테이징한다.
 
-## Package Strategy
+- `fonts/`
+- `nushell/`
+- `starship/`
+- `wezterm/`
+- `nvim/`
 
-- 패키지 목록은 `mac/Brewfile`이 기준이다.
-- CLI 도구는 Homebrew가 책임지고, 프롬프트/셸 UX 자산은 `shared/` 스테이징이 책임진다.
-- `tmux`는 Homebrew 기본 설치 대상이고, 설정은 `shared/tmux/.tmux.conf`가 책임진다.
-- 폰트는 OS 전역 설치가 아니라 `WezTerm`의 `font_dirs`에서 직접 읽는다.
+### 4. Wire WezTerm
 
-## Why Keep zsh On mac
+다음 파일을 실제 위치에 연결하거나 복사한다.
 
-- mac 기본 셸과 가장 자연스럽게 연결된다.
-- Windows와 bash 계열 습관의 접점이 많다.
-- 목표는 셸 엔진 자체 통일보다 UX 통일이다.
+- `shared/wezterm/wezterm.lua` -> `~/.wezterm.lua`
+- `shared/starship/starship.toml` -> `~/.config/starship.toml`
+
+`WezTerm`의 기본 셸은 `nu -l`이다.
+
+### 5. Wire NuShell
+
+NuShell 설정 파일은 표준 위치인 `~/Library/Application Support/nushell` 아래에 둔다.
+
+- `config.nu`
+- `env.nu`
+- `login.nu`
+- `autoload/wezterm-integration.nu`
+
+### 6. Starship, zoxide, fzf
+
+설치 스크립트는 NuShell용 autoload 파일을 생성한다.
+
+- `starship init nu` -> `~/Library/Application Support/nushell/autoload/starship.nu`
+- `zoxide init nushell` -> `~/Library/Application Support/nushell/autoload/zoxide.nu`
+
+`fzf`는 외부 CLI로 설치하고, NuShell에서 직접 호출 가능한 상태를 기준으로 둔다.
+
+### 7. Sync LazyVim
+
+`shared/nvim/`을 `~/.config/nvim`으로 연결하거나 복사한다.
+
+이 저장소는 설정만 책임지고, 캐시와 외부 도구는 새 환경에서 다시 생성한다.
+
+### 8. Verify
+
+최소 검증 기준:
+
+- WezTerm이 바로 열리고 NuShell이 시작된다.
+- Starship 프롬프트가 표시된다.
+- `zoxide`, `fzf`, `rg`, `fd`, `git`, `nvim`이 실행된다.
+- 새 탭/분할에서 작업 흐름이 자연스럽게 이어진다.
+
+## Sync Policy
+
+- 기본값: 링크
+- fallback: 복사
+
+권장 이유:
+
+- 저장소와 스테이징 디렉터리를 source of truth로 유지할 수 있다.
+- 자산 수정이 즉시 반영된다.
+
+복사를 허용하는 이유:
+
+- 일부 파일 타깃은 복사가 더 단순하다.
+- 환경별 권한 차이를 덜 신경 써도 된다.
 
 ## Notes
 
-- mac에서는 현재 로컬 `LazyVim` 설정을 그대로 가져오되, 바이너리와 캐시는 새 환경에서 다시 생성한다.
-- 필요시 나중에 `Mason` 자동 설치 목록을 별도로 정리할 수 있다.
-
-## tmux On mac
-
-- `tmux`는 mac에서도 기본 설치/기본 세팅 대상이다.
-- 다만 기본 로컬 UI는 여전히 `WezTerm` 탭/패널이다.
-- 즉, `tmux`를 자동 attach 하지는 않고 필요할 때만 `tmux new -As main` 같은 명령으로 들어간다.
-- 창/분할 사용법과 운영 원칙은 Windows와 동일하게 가져간다.
+- 폰트는 OS 전역 설치 대신 WezTerm의 `font_dirs`로 로드한다.
+- mac 문서의 기준도 `NuShell`이며, 다른 셸 프로필 수정은 범위에 포함하지 않는다.
+- Homebrew는 설치 실행기이자 패키지 공급원이고, 일상 인터랙티브 셸 기준은 아니다.

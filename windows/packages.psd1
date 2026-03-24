@@ -7,10 +7,10 @@
             Chocolatey = 'wezterm.install'
         }
         @{
-            Name = 'MSYS2'
-            DetectPath = '%SystemDrive%\msys64\usr\bin\bash.exe'
-            WingetId = 'MSYS2.MSYS2'
-            Chocolatey = 'msys2'
+            Name = 'NuShell'
+            DetectCommand = 'nu'
+            WingetId = 'Nushell.Nushell'
+            Chocolatey = 'nushell'
         }
         @{
             Name = 'Git'

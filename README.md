@@ -1,16 +1,15 @@
 # Terminal Bootstrap
 
-Windows와 mac에서 최대한 비슷한 터미널 UX를 재현하기 위한 부트스트랩 저장소다.
+Windows와 mac에서 `WezTerm + NuShell + Starship + zoxide + fzf + Neovim/LazyVim` 기준의 터미널, 셸, 에디터 환경을 재현하기 위한 부트스트랩 저장소다.
 
-이 폴더는 다음을 목표로 한다.
+## 목표
 
 - `WezTerm` 기반 공통 터미널 UX
-- `Catppuccin Mocha` 계열 색상과 `Monoplex KR Nerd Wide` 폰트 사용
-- 배경은 Windows `Acrylic` + opacity `0.8`, macOS blur `20` 기준
-- `MSYS2 UCRT64 bash`(Windows)와 `zsh`(mac)를 쓰되, 체감 UX는 최대한 통일
-- `tmux`를 기본 자산으로 포함하되, 바깥 UI는 계속 `WezTerm` 탭/패널을 유지
+- `NuShell` 기반 공통 인터랙티브 셸
+- `Catppuccin Mocha`와 `Monoplex KR Nerd Wide` 기준의 공통 외관
+- `Starship`, `zoxide`, `fzf`, `rg`, `fd`, `git`, `lazygit` 중심 워크플로우
 - 현재 로컬 `LazyVim` 설정을 그대로 자산으로 포함
-- 폰트와 설정 파일은 이 폴더 안에 보관하고, 설치 스크립트는 인터넷에서 패키지를 받는 준오프라인 방식
+- Windows/mac 설치 문서를 같은 단계 구조로 유지
 
 ## 폴더 구조
 
@@ -23,41 +22,73 @@ global-terminal-settings/
 │  ├─ ux-contract.md
 │  └─ windows-setup.md
 ├─ mac/
+│  ├─ Brewfile
 │  └─ install.sh
 ├─ shared/
 │  ├─ fonts/
+│  ├─ nushell/
 │  ├─ nvim/
-│  ├─ shell/
 │  ├─ starship/
-│  ├─ tmux/
 │  └─ wezterm/
 └─ windows/
-   └─ install.ps1
+   ├─ install.ps1
+   └─ packages.psd1
 ```
 
 ## 포함 자산
 
 - `shared/fonts/MonoplexKRWideNerd/`
-  - 로컬 폰트 원본에서 복사한 폰트 파일
+  - 폰트 자산 원본
   - 설치 시 `~/.config/terminal-bootstrap/fonts/`로 스테이징
-  - `WezTerm`이 `font_dirs`로 직접 로드
+- `shared/nushell/`
+  - 공통 `config.nu`, `env.nu`, `login.nu`
+  - WezTerm용 NuShell 연동 레이어
 - `shared/nvim/`
-  - 현재 로컬 Neovim 설정 스냅샷
-  - 원본 기준: Windows에서는 `%LOCALAPPDATA%\\nvim`
-  - 제외: `.git`, `nvim-data`, 캐시, 세션, Mason 바이너리
-- `shared/wezterm/wezterm.lua`
-  - 공통 WezTerm 기준 설정
-- `shared/wezterm/wezterm-shell-integration.sh`
-  - WezTerm 공식 `bash`/`zsh` shell integration 스크립트 번들
+  - 현재 `LazyVim` 설정 스냅샷
 - `shared/starship/starship.toml`
   - 공통 프롬프트 기준 설정
-- `shared/tmux/.tmux.conf`
-  - 공통 tmux 최소 설정
-  - `WezTerm` 바깥 UI와 충돌하지 않도록 기본 prefix/동작은 유지
-- `shared/shell/aliases.sh`
-  - `bash`/`zsh` 공통 alias와 환경변수
-- `shared/shell/aliases.ps1`
-  - `pwsh` 보조 프로필용 alias와 환경변수
+- `shared/wezterm/wezterm.lua`
+  - 공통 WezTerm 기준 설정
+
+## 설치 모델
+
+설치 스크립트는 자산을 먼저 `~/.config/terminal-bootstrap/` 아래로 스테이징한 뒤, 앱별 실제 위치에 링크하거나 복사한다.
+
+- `~/.wezterm.lua`
+- `~/.config/starship.toml`
+- Windows: `%APPDATA%\nushell\`
+- mac: `~/Library/Application Support/nushell/`
+- Windows: `%LOCALAPPDATA%\nvim`
+- mac: `~/.config/nvim`
+
+NuShell용 `Starship`, `zoxide` 초기화 파일은 실제 NuShell 설정 디렉터리의 `autoload/` 아래에 생성한다.
+
+## 공통 설치 단계
+
+Windows와 mac 문서는 같은 8단계를 공유한다.
+
+1. 패키지 관리자 준비
+2. 핵심 패키지 설치
+3. 공통 자산 스테이징
+4. WezTerm 연결
+5. NuShell 연결
+6. Starship, zoxide, fzf 연결
+7. LazyVim 동기화
+8. 검증
+
+차이는 실제 명령과 패키지 소스만 둔다.
+
+- Windows: `winget` 우선, `choco` fallback
+- mac: `brew`
+
+## 시작점
+
+- Windows 설치 문서: [docs/windows-setup.md](docs/windows-setup.md)
+- mac 설치 문서: [docs/mac-setup.md](docs/mac-setup.md)
+- 공통 UX 기준: [docs/ux-contract.md](docs/ux-contract.md)
+- 트러블슈팅: [docs/troubleshooting.md](docs/troubleshooting.md)
+- 설계 문서: [docs/plans/wezterm-nushell-bootstrap-design.md](docs/plans/wezterm-nushell-bootstrap-design.md)
+- 구현 계획: [docs/plans/wezterm-nushell-bootstrap.md](docs/plans/wezterm-nushell-bootstrap.md)
 
 ## 범위
 
@@ -65,51 +96,14 @@ global-terminal-settings/
 
 - 터미널
 - 셸 UX
-- 폰트
 - 프롬프트
-- CLI 도구 목록
-- `LazyVim` 설정 배포 구조
+- 탐색/이동 도구
+- 폰트
+- Neovim 설정 배포 구조
 
 제외:
 
-- `codex`, `claude`, `gemini` 설치
+- 컴파일러와 빌드 툴체인
+- 언어별 개발 환경 자동 구성
 - WSL 기반 워크플로우
-- 실제 설치 실행 이력
-
-## 설치 모델
-
-설치 스크립트는 자산을 먼저 `~/.config/terminal-bootstrap/` 아래로 스테이징한 뒤, 앱별 진입점에 링크하거나 복사한다.
-
-- `~/.wezterm.lua`
-- `~/.config/wezterm/wezterm-shell-integration.sh`
-- `~/.config/starship.toml`
-- `~/.tmux.conf`
-- Windows: `%LOCALAPPDATA%\\nvim`
-- mac: `~/.config/nvim`
-
-폰트는 OS 전역 폰트 설치 대신 `WezTerm`의 `font_dirs`를 사용한다. 따라서 이 부트스트랩 폴더와 스테이징 루트만 유지하면 동일한 폰트 기준을 재현할 수 있다.
-
-Windows에서는 디렉터리 링크를 우선 사용하지만, 파일 단위 설정 타깃은 비관리자 환경에서 copy fallback이 기본 동작일 수 있다.
-
-## 설치 스크립트
-
-- Windows: `windows/install.ps1`
-- mac: `mac/install.sh`
-
-둘 다 `dry-run`과 `link/copy` 동기화 모드를 지원한다.
-
-## 시작점
-
-- Windows 기준 계획: [docs/windows-setup.md](docs/windows-setup.md)
-- mac 기준 계획: [docs/mac-setup.md](docs/mac-setup.md)
-- 공통 UX 규약: [docs/ux-contract.md](docs/ux-contract.md)
-- 트러블슈팅: [docs/troubleshooting.md](docs/troubleshooting.md)
-- 설계 문서: [docs/plans/terminal-bootstrap-design.md](docs/plans/terminal-bootstrap-design.md)
-- 구현 계획: [docs/plans/terminal-bootstrap.md](docs/plans/terminal-bootstrap.md)
-
-## tmux Baseline
-
-- 이 저장소는 `tmux`를 기본 설치/기본 설정 자산으로 포함한다.
-- 다만 기본 로컬 멀티플렉서 UI는 여전히 `WezTerm` 탭/패널이다.
-- `tmux`는 그 안쪽에서 세션 복귀, 장기 작업, 원격 작업용 레이어로 쓴다.
-- Windows/mac 운영 원칙은 각각 [docs/windows-setup.md](docs/windows-setup.md), [docs/mac-setup.md](docs/mac-setup.md)에 정리한다.
+- 과거 셸 구조와의 병행 운영 설명
