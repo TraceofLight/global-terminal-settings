@@ -15,3 +15,6 @@ Notes:
 
 - This directory is the installation source asset store
 - Do not link or copy these files directly into the system font directories
+- `MonoplexKRWideNerd/` contains unmodified upstream font files from `y-kim/monoplex`
+- Keep `MonoplexKRWideNerd/LICENSE.md` with the bundled font files when redistributing this repository
+- The bundled font metadata reports `Copyright (c) 2021, Kim Yangsu`

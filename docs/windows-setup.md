@@ -15,14 +15,28 @@ This document defines the Windows baseline produced by the `terminal-bootstrap` 
 
 ## Entry Point
 
+Prerequisites:
+
+- `pwsh` must already be available
+- Install PowerShell 7 first if `pwsh` is missing
+- `winget` must already be available
+
+Inspect the plan:
+
 ```powershell
 pwsh -NoProfile -File .\windows\install.ps1 -DryRun
+```
+
+Apply the baseline:
+
+```powershell
+pwsh -NoProfile -File .\windows\install.ps1
 ```
 
 Primary options:
 
 - `-DryRun`: print the planned actions without modifying the system
-- `-SyncMode Auto|Link|Copy`: choose how managed assets are synchronized
+- `-SyncMode Auto|Link|Copy`: choose how managed assets are synchronized; default is `Auto`
 - `-SkipPackages`: skip package installation
 - `-SkipConfigs`: skip asset staging and app configuration deployment
 
@@ -31,7 +45,8 @@ Primary options:
 ### 1. Package Manager Readiness
 
 - The primary package manager is `winget`.
-- Only packages missing from `winget`, or packages with unacceptable `winget` quality, may fall back to `choco`.
+- `choco` is only used when a package defines a Chocolatey fallback and `choco` is already installed.
+- If `choco` is unavailable, optional fallback packages are skipped and required fallback packages fail.
 - A package must not be owned by both managers at the same time.
 
 ### 2. Core Packages
@@ -68,7 +83,7 @@ The following files are linked or copied into their real locations.
 
 ### 5. Wire NuShell
 
-NuShell configuration files are placed in the standard NuShell config directory, typically `%APPDATA%\nushell`.
+NuShell configuration files are placed in the directory reported by `nu -n -c '$nu.default-config-dir'` when `nu` is already available. If `nu` is not available yet, the installer falls back to `%APPDATA%\nushell`.
 
 - `config.nu`
 - `env.nu`
@@ -81,10 +96,7 @@ For the Windows `WezTerm + NuShell` baseline, `shell_integration.osc133` is disa
 
 ### 6. Wire Starship, zoxide, and fzf
 
-The installer generates NuShell autoload files, and `config.nu` sources them explicitly.
-
-- `starship init nu` -> `%APPDATA%\nushell\autoload\starship.nu`
-- `zoxide init nushell` -> `%APPDATA%\nushell\autoload\zoxide.nu`
+The installer generates `starship.nu` and `zoxide.nu` into the resolved NuShell config directory under `autoload\`, and `config.nu` sources them explicitly.
 
 `fzf` is installed as an external CLI and is expected to be directly callable from NuShell.
 
@@ -105,8 +117,11 @@ Minimum verification:
 
 ## Sync Policy
 
-- Default: link
-- Fallback: copy
+- Default: `Auto`
+- `Auto`: try links first and fall back to copy if link creation fails
+- `Link`: require links and stop if link creation fails
+- `Copy`: always copy managed assets
+- Existing managed targets are moved to `<target>.pre-terminal-bootstrap-<timestamp>` before replacement
 
 Why links are preferred:
 

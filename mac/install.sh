@@ -243,4 +243,8 @@ if [[ $SKIP_CONFIGS -eq 0 ]]; then
 fi
 
 log_stage 8 "Verify"
-printf 'Run bash ./mac/install.sh --dry-run to inspect the plan and then launch WezTerm to verify the NuShell entrypoint.\n'
+if [[ $DRY_RUN -eq 1 ]]; then
+  printf 'Run bash ./mac/install.sh to apply the baseline, then launch WezTerm to verify the NuShell entrypoint.\n'
+else
+  printf 'Launch WezTerm to verify the NuShell entrypoint.\n'
+fi

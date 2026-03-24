@@ -388,4 +388,8 @@ if (-not $SkipConfigs) {
 }
 
 Write-Stage 8 'Verify'
-Write-Host 'Run `pwsh -NoProfile -File .\windows\install.ps1 -DryRun` to inspect the plan and then launch WezTerm to verify the NuShell entrypoint.'
+if ($DryRun) {
+    Write-Host 'Run `pwsh -NoProfile -File .\windows\install.ps1` to apply the baseline, then launch WezTerm to verify the NuShell entrypoint.'
+} else {
+    Write-Host 'Launch WezTerm to verify the NuShell entrypoint.'
+}

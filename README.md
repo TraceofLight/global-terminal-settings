@@ -18,7 +18,6 @@ global-terminal-settings/
 ├─ docs/
 │  ├─ plans/
 │  ├─ mac-setup.md
-│  ├─ troubleshooting.md
 │  ├─ ux-contract.md
 │  └─ windows-setup.md
 ├─ mac/
@@ -38,7 +37,7 @@ global-terminal-settings/
 ## Managed Assets
 
 - `shared/fonts/MonoplexKRWideNerd/`
-  - Source font assets staged into `~/.config/terminal-bootstrap/fonts/`
+  - Source font assets staged into the per-user install root under `fonts/`
 - `shared/nushell/`
   - Shared `config.nu`, `env.nu`, `login.nu`
   - NuShell integration layer for WezTerm
@@ -51,14 +50,23 @@ global-terminal-settings/
 
 ## Installation Model
 
-The installers first stage managed assets into `~/.config/terminal-bootstrap/` and then link or copy them into the application-specific locations.
+The installers first stage managed assets into a per-user install root and then link or copy them into the application-specific locations.
+
+- Windows install root: `%USERPROFILE%\.config\terminal-bootstrap\`
+- macOS install root: `~/.config/terminal-bootstrap/` by default
+- If `XDG_CONFIG_HOME` is set on macOS, the installer uses `$XDG_CONFIG_HOME/terminal-bootstrap/`
+- Existing managed targets are moved to `<target>.pre-terminal-bootstrap-<timestamp>` before replacement
 
 - `~/.wezterm.lua`
-- `~/.config/starship.toml`
-- Windows: the standard NuShell config directory, typically `%APPDATA%\nushell\`
-- macOS: the standard NuShell config directory, typically `~/Library/Application Support/nushell/`
+- Windows: `%USERPROFILE%\.config\starship.toml`
+- macOS: `~/.config/starship.toml` by default
+- If `XDG_CONFIG_HOME` is set on macOS, the installer uses `$XDG_CONFIG_HOME/starship.toml`
+- The NuShell config directory reported by `nu -n -c '$nu.default-config-dir'`
+- Windows fallback when `nu` is unavailable: `%APPDATA%\nushell\`
+- macOS fallback when `nu` is unavailable: `~/Library/Application Support/nushell/`
 - Windows: `%LOCALAPPDATA%\nvim`
-- macOS: `~/.config/nvim`
+- macOS: `~/.config/nvim` by default
+- If `XDG_CONFIG_HOME` is set on macOS, the installer uses `$XDG_CONFIG_HOME/nvim`
 
 The NuShell `Starship` and `zoxide` init files are generated into the real NuShell `autoload/` directory, and `config.nu` sources them explicitly.
 
@@ -79,7 +87,7 @@ Windows and macOS use the same eight installation stages.
 
 Only the concrete commands and package sources differ.
 
-- Windows: `winget` first, `choco` fallback
+- Windows: `winget` first, `choco` only when already installed and the package allows fallback
 - macOS: `brew`
 
 ## Entry Points
@@ -87,7 +95,6 @@ Only the concrete commands and package sources differ.
 - Windows setup guide: [docs/windows-setup.md](docs/windows-setup.md)
 - macOS setup guide: [docs/mac-setup.md](docs/mac-setup.md)
 - Shared UX contract: [docs/ux-contract.md](docs/ux-contract.md)
-- Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
 - Design document: [docs/plans/wezterm-nushell-bootstrap-design.md](docs/plans/wezterm-nushell-bootstrap-design.md)
 - Implementation plan: [docs/plans/wezterm-nushell-bootstrap.md](docs/plans/wezterm-nushell-bootstrap.md)
 

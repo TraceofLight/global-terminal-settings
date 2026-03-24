@@ -86,7 +86,6 @@ bash ./mac/install.sh --dry-run
 - `docs/windows-setup.md`
 - `docs/mac-setup.md`
 - `docs/ux-contract.md`
-- `docs/troubleshooting.md`
 - `docs/plans/wezterm-nushell-bootstrap-design.md`
 - `docs/plans/wezterm-nushell-bootstrap.md`
 - `shared/fonts/README.md`

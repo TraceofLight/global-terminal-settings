@@ -15,14 +15,22 @@ This document defines the macOS baseline produced by the `terminal-bootstrap` re
 
 ## Entry Point
 
+Inspect the plan:
+
 ```bash
 bash ./mac/install.sh --dry-run
+```
+
+Apply the baseline:
+
+```bash
+bash ./mac/install.sh
 ```
 
 Primary options:
 
 - `--dry-run`: print the planned actions without modifying the system
-- `--sync-mode auto|link|copy`: choose how managed assets are synchronized
+- `--sync-mode auto|link|copy`: choose how managed assets are synchronized; default is `auto`
 - `--skip-packages`: skip Homebrew package installation
 - `--skip-configs`: skip asset staging and app configuration deployment
 
@@ -48,7 +56,7 @@ Key packages:
 
 ### 3. Stage Managed Assets
 
-Managed assets are staged into `~/.config/terminal-bootstrap`.
+Managed assets are staged into `~/.config/terminal-bootstrap` by default. If `XDG_CONFIG_HOME` is set, the installer uses `$XDG_CONFIG_HOME/terminal-bootstrap`.
 
 - `fonts/`
 - `nushell/`
@@ -61,13 +69,14 @@ Managed assets are staged into `~/.config/terminal-bootstrap`.
 The following files are linked or copied into their real locations.
 
 - `shared/wezterm/wezterm.lua` -> `~/.wezterm.lua`
-- `shared/starship/starship.toml` -> `~/.config/starship.toml`
+- `shared/starship/starship.toml` -> `~/.config/starship.toml` by default
+- If `XDG_CONFIG_HOME` is set, `shared/starship/starship.toml` -> `$XDG_CONFIG_HOME/starship.toml`
 
 `WezTerm` launches `nu -l` as the default shell.
 
 ### 5. Wire NuShell
 
-NuShell configuration files are placed in the standard NuShell config directory, typically `~/Library/Application Support/nushell`.
+NuShell configuration files are placed in the directory reported by `nu -n -c '$nu.default-config-dir'` when `nu` is already available. If `nu` is not available yet, the installer falls back to `~/Library/Application Support/nushell`.
 
 - `config.nu`
 - `env.nu`
@@ -76,16 +85,13 @@ NuShell configuration files are placed in the standard NuShell config directory,
 
 ### 6. Wire Starship, zoxide, and fzf
 
-The installer generates NuShell autoload files, and `config.nu` sources them explicitly.
-
-- `starship init nu` -> `~/Library/Application Support/nushell/autoload/starship.nu`
-- `zoxide init nushell` -> `~/Library/Application Support/nushell/autoload/zoxide.nu`
+The installer generates `starship.nu` and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them explicitly.
 
 `fzf` is installed as an external CLI and is expected to be directly callable from NuShell.
 
 ### 7. Sync LazyVim
 
-`shared/nvim/` is linked or copied into `~/.config/nvim`.
+`shared/nvim/` is linked or copied into `~/.config/nvim` by default. If `XDG_CONFIG_HOME` is set, the installer uses `$XDG_CONFIG_HOME/nvim`.
 
 This repository manages configuration only. Caches and external editor tools are regenerated in the target environment.
 
@@ -100,8 +106,11 @@ Minimum verification:
 
 ## Sync Policy
 
-- Default: link
-- Fallback: copy
+- Default: `auto`
+- `auto`: try links first and fall back to copy if link creation fails
+- `link`: require links and stop if link creation fails
+- `copy`: always copy managed assets
+- Existing managed targets are moved to `<target>.pre-terminal-bootstrap-<timestamp>` before replacement
 
 Why links are preferred:
 

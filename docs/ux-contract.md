@@ -50,7 +50,7 @@ This document defines what must stay consistent between Windows and macOS, and w
 
 - Fonts are not downloaded externally during installation
 - Files under `shared/fonts/` are treated as the installation source
-- Fonts are staged into `~/.config/terminal-bootstrap/fonts/`
+- Fonts are staged into the per-user install root under `fonts/`
 - WezTerm loads them directly through `font_dirs`
 
 ## Editor Policy
