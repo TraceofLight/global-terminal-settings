@@ -64,16 +64,22 @@ NuShell 초기화 책임은 다음 파일로 분리한다.
 
 서드파티 초기화는 NuShell 표준 방식에 맞춰 autoload 계층으로 정리한다.
 
+프롬프트 렌더링 기준도 `config.nu`가 명시적으로 정한다.
+
+- `Starship` 왼쪽 프롬프트를 기준으로 사용한다.
+- NuShell 기본 `vi` indicator와 multiline indicator는 비활성화한다.
+- NuShell 오른쪽 프롬프트 경로는 사용하지 않는다.
+- Windows의 WezTerm 조합에서는 `shell_integration.osc133`를 비활성화한다.
+
 ### 4. WezTerm Integration Model
 
 `WezTerm`의 외관과 탭/분할 UX는 유지한다. 변경 범위는 셸 진입점과 NuShell 연동 레이어로 제한한다.
 
 NuShell용 WezTerm 연동은 별도 Nu 모듈로 관리한다.
 
-- 작업 디렉터리 변경 추적
-- prompt 경계 표시
-- 명령 실행 전후 hook
-- 필요한 OSC escape 출력
+- `env_change.PWD` 기반 작업 디렉터리 변경 추적
+- WezTerm용 `OSC 7` 출력
+- 입력 redraw를 건드리는 `pre_prompt` 경로는 사용하지 않음
 
 목표는 동일한 구현 방식이 아니라 동일한 체감 UX다.
 

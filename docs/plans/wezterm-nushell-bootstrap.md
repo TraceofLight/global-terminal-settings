@@ -4,7 +4,7 @@
 
 **Goal:** Windows와 mac에서 `WezTerm + NuShell + Starship + zoxide + fzf + Neovim/LazyVim` 기준의 공통 부트스트랩 구조와 설치 문서를 실제 파일 상태와 맞게 재구성한다.
 
-**Architecture:** 공통 UX 자산은 `shared/`에 두고, OS별 설치 구현은 `windows/`, `mac/`에 분리한다. `WezTerm`은 양쪽 모두 `nu -l`을 기본 진입점으로 사용하고, NuShell 설정은 표준 디렉터리에 배치하되, `Starship`과 `zoxide`의 NuShell 초기화 파일은 설치 시 autoload 계층에 생성한다.
+**Architecture:** 공통 UX 자산은 `shared/`에 두고, OS별 설치 구현은 `windows/`, `mac/`에 분리한다. `WezTerm`은 양쪽 모두 `nu -l`을 기본 진입점으로 사용하고, NuShell 설정은 표준 디렉터리에 배치하되, `Starship`과 `zoxide`의 NuShell 초기화 파일은 설치 시 autoload 계층에 생성한다. 프롬프트는 `Starship` 왼쪽 프롬프트를 기준으로 두고, NuShell 기본 `vi` indicator와 오른쪽 프롬프트 경로는 비활성화한다. Windows의 WezTerm 조합에서는 입력 redraw 안정성을 위해 `shell_integration.osc133`를 끈다.
 
 **Tech Stack:** WezTerm, NuShell, Starship, zoxide, fzf, Neovim/LazyVim, Lua, PowerShell, Bash, Markdown, winget, Chocolatey, Homebrew
 

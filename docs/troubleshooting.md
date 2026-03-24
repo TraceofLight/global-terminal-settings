@@ -13,6 +13,30 @@
 
 - 설치 스크립트를 다시 실행해 NuShell 설정 파일을 재동기화한다.
 - `NuShell` 패키지가 누락됐으면 패키지 단계부터 다시 확인한다.
+- Windows에서는 `C:\Users\<user>\AppData\Local\Programs\nu\bin\nu.exe`가 실제로 존재하는지 확인한다.
+
+## Nu Command Is Missing In The Current Shell
+
+원인:
+
+- 패키지 설치는 끝났지만 현재 셸 세션 PATH가 아직 갱신되지 않음
+
+대응:
+
+- 새 터미널 세션을 열어 다시 확인한다.
+- WezTerm은 일반 설치 경로를 먼저 확인하므로, 현재 셸 PATH가 늦게 갱신돼도 별도 실행은 가능할 수 있다.
+
+## WezTerm Output Moves Up While Typing In NuShell
+
+원인:
+
+- Windows의 WezTerm에서 NuShell 기본 `shell_integration.osc133` prompt marker가 입력 redraw와 충돌할 수 있음
+
+대응:
+
+- [shared/nushell/config.nu](D:/Projects/Github/global-terminal-settings/shared/nushell/config.nu) 기준으로 `shell_integration.osc133 = false` 상태인지 확인한다.
+- WezTerm과 NuShell 세션을 완전히 다시 시작해 변경을 반영한다.
+- 이 저장소의 NuShell 기준은 `osc133`를 끄고 나머지 terminal integration은 유지하는 쪽이다.
 
 ## Starship Or zoxide Does Not Load In NuShell
 
@@ -20,6 +44,7 @@
 
 - NuShell autoload 디렉터리에 `starship.nu`, `zoxide.nu`가 생성됐는지
 - `starship`, `zoxide` 바이너리가 실제 PATH에 있는지
+- `config.nu`가 autoload 파일을 명시적으로 source 하고 있는지
 
 대응:
 

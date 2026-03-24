@@ -10,7 +10,7 @@ $git_branch\
 $git_status\
 [](fg:blue) \
 $cmd_duration\
-$character
+$character\
 """
 
 [palettes.catppuccin_mocha]

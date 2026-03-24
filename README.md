@@ -56,12 +56,14 @@ global-terminal-settings/
 
 - `~/.wezterm.lua`
 - `~/.config/starship.toml`
-- Windows: `%APPDATA%\nushell\`
-- mac: `~/Library/Application Support/nushell/`
+- Windows: NuShell 표준 config dir, 일반적으로 `%APPDATA%\nushell\`
+- mac: NuShell 표준 config dir, 일반적으로 `~/Library/Application Support/nushell/`
 - Windows: `%LOCALAPPDATA%\nvim`
 - mac: `~/.config/nvim`
 
-NuShell용 `Starship`, `zoxide` 초기화 파일은 실제 NuShell 설정 디렉터리의 `autoload/` 아래에 생성한다.
+NuShell용 `Starship`, `zoxide` 초기화 파일은 실제 NuShell 설정 디렉터리의 `autoload/` 아래에 생성하고, `config.nu`가 이를 명시적으로 source 한다.
+
+Windows의 `WezTerm + NuShell` 기준에서는 입력 redraw 안정성을 위해 `shell_integration.osc133`를 비활성화한다. 프롬프트는 `Starship` 단일 왼쪽 프롬프트를 기준으로 두고, NuShell 기본 `vi` indicator와 오른쪽 프롬프트 경로는 사용하지 않는다.
 
 ## 공통 설치 단계
 

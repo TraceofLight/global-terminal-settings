@@ -185,6 +185,7 @@ initialize_nushell_autoload() {
   nushell_root="$(get_nushell_root)"
   local autoload_root="$nushell_root/autoload"
   ensure_dir "$autoload_root"
+  local no_op_script="# managed by terminal-bootstrap"
 
   if command -v starship >/dev/null 2>&1; then
     if [[ $DRY_RUN -eq 1 ]]; then
@@ -193,7 +194,12 @@ initialize_nushell_autoload() {
       starship init nu > "$autoload_root/starship.nu"
     fi
   else
-    printf 'warn  starship command not found; skipping NuShell Starship autoload generation\n' >&2
+    printf 'warn  starship command not found; writing no-op NuShell Starship autoload\n' >&2
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf '[dry-run] Write NuShell Starship autoload placeholder\n'
+    else
+      printf '%s\n' "$no_op_script" > "$autoload_root/starship.nu"
+    fi
   fi
 
   if command -v zoxide >/dev/null 2>&1; then
@@ -203,7 +209,12 @@ initialize_nushell_autoload() {
       zoxide init nushell > "$autoload_root/zoxide.nu"
     fi
   else
-    printf 'warn  zoxide command not found; skipping NuShell zoxide autoload generation\n' >&2
+    printf 'warn  zoxide command not found; writing no-op NuShell zoxide autoload\n' >&2
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf '[dry-run] Write NuShell zoxide autoload placeholder\n'
+    else
+      printf '%s\n' "$no_op_script" > "$autoload_root/zoxide.nu"
+    fi
   fi
 }
 

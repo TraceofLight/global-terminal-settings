@@ -17,6 +17,7 @@ $script:InstallRoot = Join-Path $HOME '.config\terminal-bootstrap'
 $script:Timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $script:PackageSpecs = $manifest.Packages
 $script:DefaultNushellConfigRoot = Join-Path $env:APPDATA 'nushell'
+$script:DefaultNushellExecutable = Join-Path $env:LOCALAPPDATA 'Programs\nu\bin\nu.exe'
 
 function Write-Stage {
     param(
@@ -208,8 +209,16 @@ function Refresh-SessionPath {
 }
 
 function Get-NushellConfigRoot {
-    if (Get-Command nu -ErrorAction SilentlyContinue) {
-        $nuRoot = & nu -n -c '$nu.default-config-dir' 2>$null
+    $nuExecutable = if (Get-Command nu -ErrorAction SilentlyContinue) {
+        (Get-Command nu -ErrorAction SilentlyContinue).Source
+    } elseif (Test-Path -LiteralPath $script:DefaultNushellExecutable) {
+        $script:DefaultNushellExecutable
+    } else {
+        $null
+    }
+
+    if ($nuExecutable) {
+        $nuRoot = & $nuExecutable -n -c '$nu.default-config-dir' 2>$null
         if (-not [string]::IsNullOrWhiteSpace($nuRoot)) {
             return $nuRoot.Trim()
         }
@@ -297,13 +306,17 @@ function Initialize-NuAutoload {
 
     $starshipTarget = Join-Path $autoloadRoot 'starship.nu'
     $zoxideTarget = Join-Path $autoloadRoot 'zoxide.nu'
+    $noOpScript = "# managed by terminal-bootstrap`n"
 
     if (Get-Command starship -ErrorAction SilentlyContinue) {
         Invoke-Action "Generate NuShell Starship autoload" {
             & starship init nu | Set-Content -LiteralPath $starshipTarget
         }
     } else {
-        Write-Warning 'starship command not found. Skipping NuShell Starship autoload generation.'
+        Write-Warning 'starship command not found. Writing no-op NuShell Starship autoload.'
+        Invoke-Action "Write NuShell Starship autoload placeholder" {
+            Set-Content -LiteralPath $starshipTarget -Value $noOpScript
+        }
     }
 
     if (Get-Command zoxide -ErrorAction SilentlyContinue) {
@@ -311,7 +324,10 @@ function Initialize-NuAutoload {
             & zoxide init nushell | Set-Content -LiteralPath $zoxideTarget
         }
     } else {
-        Write-Warning 'zoxide command not found. Skipping NuShell zoxide autoload generation.'
+        Write-Warning 'zoxide command not found. Writing no-op NuShell zoxide autoload.'
+        Invoke-Action "Write NuShell zoxide autoload placeholder" {
+            Set-Content -LiteralPath $zoxideTarget -Value $noOpScript
+        }
     }
 }
 

@@ -42,6 +42,9 @@
 - 공통 기준은 `Starship`
 - 프롬프트는 과도한 장식보다 현재 작업 맥락, Git 상태, 시간 정보를 우선한다
 - NuShell 진입 직후 곧바로 현재 작업 흐름에 들어갈 수 있어야 한다
+- WezTerm 기준 프롬프트는 왼쪽 프롬프트 하나로 유지한다
+- NuShell 기본 `vi` indicator와 오른쪽 프롬프트 경로는 사용하지 않는다
+- Windows의 WezTerm 조합에서는 `shell_integration.osc133`를 비활성화한다
 
 ## Font Policy
 

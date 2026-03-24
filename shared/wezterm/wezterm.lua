@@ -2,6 +2,10 @@ local wezterm = require("wezterm")
 
 local config = wezterm.config_builder()
 local bootstrap_dir = wezterm.home_dir .. "/.config/terminal-bootstrap"
+local function file_exists(path)
+  local ok, _, code = os.rename(path, path)
+  return ok or code == 13
+end
 
 config.adjust_window_size_when_changing_font_size = false
 config.automatically_reload_config = true
@@ -46,16 +50,27 @@ config.keys = {
 
 if wezterm.target_triple:find("windows") then
   local windows_home = wezterm.home_dir:gsub("\\", "/")
+  local nu_path = windows_home .. "/AppData/Local/Programs/nu/bin/nu.exe"
   config.win32_system_backdrop = "Acrylic"
   config.set_environment_variables = {
     HOME = windows_home,
   }
-  config.default_prog = { "nu.exe", "-l" }
+  if file_exists(nu_path) then
+    config.default_prog = { nu_path, "-l" }
+  else
+    config.default_prog = { "nu.exe", "-l" }
+  end
 else
   if wezterm.target_triple:find("darwin") then
     config.macos_window_background_blur = 20
   end
-  config.default_prog = { "nu", "-l" }
+  if file_exists("/opt/homebrew/bin/nu") then
+    config.default_prog = { "/opt/homebrew/bin/nu", "-l" }
+  elseif file_exists("/usr/local/bin/nu") then
+    config.default_prog = { "/usr/local/bin/nu", "-l" }
+  else
+    config.default_prog = { "nu", "-l" }
+  end
 end
 
 return config

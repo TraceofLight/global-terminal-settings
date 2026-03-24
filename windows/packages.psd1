@@ -8,6 +8,7 @@
         }
         @{
             Name = 'NuShell'
+            DetectPath = '%LOCALAPPDATA%\Programs\nu\bin\nu.exe'
             DetectCommand = 'nu'
             WingetId = 'Nushell.Nushell'
             Chocolatey = 'nushell'

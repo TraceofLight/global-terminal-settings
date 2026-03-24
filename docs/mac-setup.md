@@ -67,7 +67,7 @@
 
 ### 5. Wire NuShell
 
-NuShell 설정 파일은 표준 위치인 `~/Library/Application Support/nushell` 아래에 둔다.
+NuShell 설정 파일은 NuShell 표준 config dir 아래에 둔다. 일반적인 위치는 `~/Library/Application Support/nushell`이다.
 
 - `config.nu`
 - `env.nu`
@@ -76,7 +76,7 @@ NuShell 설정 파일은 표준 위치인 `~/Library/Application Support/nushell
 
 ### 6. Starship, zoxide, fzf
 
-설치 스크립트는 NuShell용 autoload 파일을 생성한다.
+설치 스크립트는 NuShell용 autoload 파일을 생성하고, `config.nu`는 이 파일들을 명시적으로 source 한다.
 
 - `starship init nu` -> `~/Library/Application Support/nushell/autoload/starship.nu`
 - `zoxide init nushell` -> `~/Library/Application Support/nushell/autoload/zoxide.nu`
@@ -118,3 +118,4 @@ NuShell 설정 파일은 표준 위치인 `~/Library/Application Support/nushell
 - 폰트는 OS 전역 설치 대신 WezTerm의 `font_dirs`로 로드한다.
 - mac 문서의 기준도 `NuShell`이며, 다른 셸 프로필 수정은 범위에 포함하지 않는다.
 - Homebrew는 설치 실행기이자 패키지 공급원이고, 일상 인터랙티브 셸 기준은 아니다.
+- WezTerm은 mac에서 대표적인 Homebrew 설치 경로를 먼저 확인하고, 찾지 못하면 `nu`를 이름으로 실행한다.
