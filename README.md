@@ -1,17 +1,17 @@
 # Terminal Bootstrap
 
-Windows와 mac에서 `WezTerm + NuShell + Starship + zoxide + fzf + Neovim/LazyVim` 기준의 터미널, 셸, 에디터 환경을 재현하기 위한 부트스트랩 저장소다.
+This repository bootstraps a shared `WezTerm + NuShell + Starship + zoxide + fzf + Neovim/LazyVim` environment across Windows and macOS.
 
-## 목표
+## Goals
 
-- `WezTerm` 기반 공통 터미널 UX
-- `NuShell` 기반 공통 인터랙티브 셸
-- `Catppuccin Mocha`와 `Monoplex KR Nerd Wide` 기준의 공통 외관
-- `Starship`, `zoxide`, `fzf`, `rg`, `fd`, `git`, `lazygit` 중심 워크플로우
-- 현재 로컬 `LazyVim` 설정을 그대로 자산으로 포함
-- Windows/mac 설치 문서를 같은 단계 구조로 유지
+- Provide a shared terminal UX built on `WezTerm`
+- Use `NuShell` as the default interactive shell
+- Keep a consistent visual baseline with `Catppuccin Mocha` and `Monoplex KR Nerd Wide`
+- Preserve the current workflow around `Starship`, `zoxide`, `fzf`, `rg`, `fd`, `git`, and `lazygit`
+- Treat the current local `LazyVim` setup as a managed asset
+- Keep Windows and macOS installation guides aligned to the same stage structure
 
-## 폴더 구조
+## Repository Layout
 
 ```text
 global-terminal-settings/
@@ -35,77 +35,76 @@ global-terminal-settings/
    └─ packages.psd1
 ```
 
-## 포함 자산
+## Managed Assets
 
 - `shared/fonts/MonoplexKRWideNerd/`
-  - 폰트 자산 원본
-  - 설치 시 `~/.config/terminal-bootstrap/fonts/`로 스테이징
+  - Source font assets staged into `~/.config/terminal-bootstrap/fonts/`
 - `shared/nushell/`
-  - 공통 `config.nu`, `env.nu`, `login.nu`
-  - WezTerm용 NuShell 연동 레이어
+  - Shared `config.nu`, `env.nu`, `login.nu`
+  - NuShell integration layer for WezTerm
 - `shared/nvim/`
-  - 현재 `LazyVim` 설정 스냅샷
+  - Current `LazyVim` configuration snapshot
 - `shared/starship/starship.toml`
-  - 공통 프롬프트 기준 설정
+  - Shared prompt configuration
 - `shared/wezterm/wezterm.lua`
-  - 공통 WezTerm 기준 설정
+  - Shared WezTerm configuration
 
-## 설치 모델
+## Installation Model
 
-설치 스크립트는 자산을 먼저 `~/.config/terminal-bootstrap/` 아래로 스테이징한 뒤, 앱별 실제 위치에 링크하거나 복사한다.
+The installers first stage managed assets into `~/.config/terminal-bootstrap/` and then link or copy them into the application-specific locations.
 
 - `~/.wezterm.lua`
 - `~/.config/starship.toml`
-- Windows: NuShell 표준 config dir, 일반적으로 `%APPDATA%\nushell\`
-- mac: NuShell 표준 config dir, 일반적으로 `~/Library/Application Support/nushell/`
+- Windows: the standard NuShell config directory, typically `%APPDATA%\nushell\`
+- macOS: the standard NuShell config directory, typically `~/Library/Application Support/nushell/`
 - Windows: `%LOCALAPPDATA%\nvim`
-- mac: `~/.config/nvim`
+- macOS: `~/.config/nvim`
 
-NuShell용 `Starship`, `zoxide` 초기화 파일은 실제 NuShell 설정 디렉터리의 `autoload/` 아래에 생성하고, `config.nu`가 이를 명시적으로 source 한다.
+The NuShell `Starship` and `zoxide` init files are generated into the real NuShell `autoload/` directory, and `config.nu` sources them explicitly.
 
-Windows의 `WezTerm + NuShell` 기준에서는 입력 redraw 안정성을 위해 `shell_integration.osc133`를 비활성화한다. 프롬프트는 `Starship` 단일 왼쪽 프롬프트를 기준으로 두고, NuShell 기본 `vi` indicator와 오른쪽 프롬프트 경로는 사용하지 않는다.
+On Windows, the `WezTerm + NuShell` baseline disables `shell_integration.osc133` for redraw stability. The prompt model uses a single left `Starship` prompt and disables NuShell's built-in `vi` indicators and right-prompt path.
 
-## 공통 설치 단계
+## Shared Installation Stages
 
-Windows와 mac 문서는 같은 8단계를 공유한다.
+Windows and macOS use the same eight installation stages.
 
-1. 패키지 관리자 준비
-2. 핵심 패키지 설치
-3. 공통 자산 스테이징
-4. WezTerm 연결
-5. NuShell 연결
-6. Starship, zoxide, fzf 연결
-7. LazyVim 동기화
-8. 검증
+1. Package manager readiness
+2. Core packages
+3. Stage managed assets
+4. Wire WezTerm
+5. Wire NuShell
+6. Wire Starship, zoxide, and fzf
+7. Sync LazyVim
+8. Verify
 
-차이는 실제 명령과 패키지 소스만 둔다.
+Only the concrete commands and package sources differ.
 
-- Windows: `winget` 우선, `choco` fallback
-- mac: `brew`
+- Windows: `winget` first, `choco` fallback
+- macOS: `brew`
 
-## 시작점
+## Entry Points
 
-- Windows 설치 문서: [docs/windows-setup.md](docs/windows-setup.md)
-- mac 설치 문서: [docs/mac-setup.md](docs/mac-setup.md)
-- 공통 UX 기준: [docs/ux-contract.md](docs/ux-contract.md)
-- 트러블슈팅: [docs/troubleshooting.md](docs/troubleshooting.md)
-- 설계 문서: [docs/plans/wezterm-nushell-bootstrap-design.md](docs/plans/wezterm-nushell-bootstrap-design.md)
-- 구현 계획: [docs/plans/wezterm-nushell-bootstrap.md](docs/plans/wezterm-nushell-bootstrap.md)
+- Windows setup guide: [docs/windows-setup.md](docs/windows-setup.md)
+- macOS setup guide: [docs/mac-setup.md](docs/mac-setup.md)
+- Shared UX contract: [docs/ux-contract.md](docs/ux-contract.md)
+- Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
+- Design document: [docs/plans/wezterm-nushell-bootstrap-design.md](docs/plans/wezterm-nushell-bootstrap-design.md)
+- Implementation plan: [docs/plans/wezterm-nushell-bootstrap.md](docs/plans/wezterm-nushell-bootstrap.md)
 
-## 범위
+## Scope
 
-포함:
+Included:
 
-- 터미널
-- 셸 UX
-- 프롬프트
-- 탐색/이동 도구
-- 폰트
-- Neovim 설정 배포 구조
+- Terminal configuration
+- Shell UX
+- Prompt behavior
+- Navigation and search tools
+- Fonts
+- Neovim configuration deployment
 
-제외:
+Excluded:
 
-- 컴파일러와 빌드 툴체인
-- 언어별 개발 환경 자동 구성
-- WSL 기반 워크플로우
-- 과거 셸 구조와의 병행 운영 설명
+- Compilers and build toolchains
+- Per-language development environment automation
+- WSL-based workflows
+- Parallel documentation for superseded shell designs

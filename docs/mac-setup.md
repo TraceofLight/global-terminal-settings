@@ -1,17 +1,17 @@
 # mac Setup
 
-이 문서는 `terminal-bootstrap` 저장소만으로 mac 환경을 재구성하는 기준 문서다.
+This document defines the macOS baseline produced by the `terminal-bootstrap` repository.
 
 ## Target State
 
-- 터미널: `WezTerm`
-- 기본 인터랙티브 셸: `NuShell`
-- 프롬프트: `Starship`
-- 탐색/이동: `zoxide`, `fzf`
-- 편집기: `Neovim + LazyVim`
-- 폰트: `Monoplex KR Nerd Wide`
-- 테마: `Catppuccin Mocha`
-- 배경 스타일: `window_background_opacity = 0.8` + `macos_window_background_blur = 20`
+- Terminal: `WezTerm`
+- Default interactive shell: `NuShell`
+- Prompt: `Starship`
+- Navigation: `zoxide`, `fzf`
+- Editor: `Neovim + LazyVim`
+- Font: `Monoplex KR Nerd Wide`
+- Theme: `Catppuccin Mocha`
+- Background style: `window_background_opacity = 0.8` + `macos_window_background_blur = 20`
 
 ## Entry Point
 
@@ -19,36 +19,36 @@
 ./mac/install.sh --dry-run
 ```
 
-주요 옵션:
+Primary options:
 
-- `--dry-run`: 실제 변경 없이 수행 계획만 출력
-- `--sync-mode auto|link|copy`: 자산 동기화 방식 선택
-- `--skip-packages`: Homebrew 패키지 설치 생략
-- `--skip-configs`: 자산 스테이징과 앱 설정 배치 생략
+- `--dry-run`: print the planned actions without modifying the system
+- `--sync-mode auto|link|copy`: choose how managed assets are synchronized
+- `--skip-packages`: skip Homebrew package installation
+- `--skip-configs`: skip asset staging and app configuration deployment
 
 ## Install Flow
 
 ### 1. Package Manager Readiness
 
-- 기본 패키지 관리자는 `brew`다.
-- 설치 스크립트는 Homebrew가 없으면 먼저 준비한다.
+- The primary package manager is `brew`.
+- The installer prepares Homebrew first if it is not already available.
 
 ### 2. Core Packages
 
-기본 패키지 목록은 [mac/Brewfile](../mac/Brewfile)가 기준이다.
+The package baseline is defined in [mac/Brewfile](../mac/Brewfile).
 
-주요 패키지:
+Key packages:
 
 - `wezterm`
 - `nushell`
 - `neovim`
 - `starship`
 - `ripgrep`, `fd`, `fzf`, `zoxide`, `git`, `lazygit`
-- 기타 보조 CLI
+- Other supporting CLIs
 
 ### 3. Stage Managed Assets
 
-공통 자산은 `~/.config/terminal-bootstrap` 아래로 스테이징한다.
+Managed assets are staged into `~/.config/terminal-bootstrap`.
 
 - `fonts/`
 - `nushell/`
@@ -58,64 +58,64 @@
 
 ### 4. Wire WezTerm
 
-다음 파일을 실제 위치에 연결하거나 복사한다.
+The following files are linked or copied into their real locations.
 
 - `shared/wezterm/wezterm.lua` -> `~/.wezterm.lua`
 - `shared/starship/starship.toml` -> `~/.config/starship.toml`
 
-`WezTerm`의 기본 셸은 `nu -l`이다.
+`WezTerm` launches `nu -l` as the default shell.
 
 ### 5. Wire NuShell
 
-NuShell 설정 파일은 NuShell 표준 config dir 아래에 둔다. 일반적인 위치는 `~/Library/Application Support/nushell`이다.
+NuShell configuration files are placed in the standard NuShell config directory, typically `~/Library/Application Support/nushell`.
 
 - `config.nu`
 - `env.nu`
 - `login.nu`
 - `autoload/wezterm-integration.nu`
 
-### 6. Starship, zoxide, fzf
+### 6. Wire Starship, zoxide, and fzf
 
-설치 스크립트는 NuShell용 autoload 파일을 생성하고, `config.nu`는 이 파일들을 명시적으로 source 한다.
+The installer generates NuShell autoload files, and `config.nu` sources them explicitly.
 
 - `starship init nu` -> `~/Library/Application Support/nushell/autoload/starship.nu`
 - `zoxide init nushell` -> `~/Library/Application Support/nushell/autoload/zoxide.nu`
 
-`fzf`는 외부 CLI로 설치하고, NuShell에서 직접 호출 가능한 상태를 기준으로 둔다.
+`fzf` is installed as an external CLI and is expected to be directly callable from NuShell.
 
 ### 7. Sync LazyVim
 
-`shared/nvim/`을 `~/.config/nvim`으로 연결하거나 복사한다.
+`shared/nvim/` is linked or copied into `~/.config/nvim`.
 
-이 저장소는 설정만 책임지고, 캐시와 외부 도구는 새 환경에서 다시 생성한다.
+This repository manages configuration only. Caches and external editor tools are regenerated in the target environment.
 
 ### 8. Verify
 
-최소 검증 기준:
+Minimum verification:
 
-- WezTerm이 바로 열리고 NuShell이 시작된다.
-- Starship 프롬프트가 표시된다.
-- `zoxide`, `fzf`, `rg`, `fd`, `git`, `nvim`이 실행된다.
-- 새 탭/분할에서 작업 흐름이 자연스럽게 이어진다.
+- WezTerm opens successfully and starts NuShell
+- The Starship prompt renders correctly
+- `zoxide`, `fzf`, `rg`, `fd`, `git`, and `nvim` run successfully
+- New tabs and splits continue the expected working flow
 
 ## Sync Policy
 
-- 기본값: 링크
-- fallback: 복사
+- Default: link
+- Fallback: copy
 
-권장 이유:
+Why links are preferred:
 
-- 저장소와 스테이징 디렉터리를 source of truth로 유지할 수 있다.
-- 자산 수정이 즉시 반영된다.
+- The repository and staging directory remain the source of truth
+- Asset changes show up immediately
 
-복사를 허용하는 이유:
+Why copy is allowed:
 
-- 일부 파일 타깃은 복사가 더 단순하다.
-- 환경별 권한 차이를 덜 신경 써도 된다.
+- Some target paths are simpler to manage via copy
+- It reduces the need to care about environment-specific permission differences
 
 ## Notes
 
-- 폰트는 OS 전역 설치 대신 WezTerm의 `font_dirs`로 로드한다.
-- mac 문서의 기준도 `NuShell`이며, 다른 셸 프로필 수정은 범위에 포함하지 않는다.
-- Homebrew는 설치 실행기이자 패키지 공급원이고, 일상 인터랙티브 셸 기준은 아니다.
-- WezTerm은 mac에서 대표적인 Homebrew 설치 경로를 먼저 확인하고, 찾지 못하면 `nu`를 이름으로 실행한다.
+- Fonts are loaded through WezTerm `font_dirs`, not installed system-wide
+- The macOS baseline is also defined around `NuShell`; other shell profile files are out of scope
+- Homebrew remains the installer and package source, not the daily interactive shell baseline
+- On macOS, WezTerm checks the common Homebrew `NuShell` install paths first and falls back to `nu` by name

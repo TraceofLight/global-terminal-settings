@@ -1,26 +1,26 @@
 # Neovim Config Snapshot
 
-이 디렉터리는 현재 로컬 Neovim 설정 스냅샷이다.
+This directory is the current local Neovim configuration snapshot.
 
-원본:
+Source:
 
-- Windows 기준 `%LOCALAPPDATA%\\nvim`
+- Windows baseline: `%LOCALAPPDATA%\\nvim`
 
-포함:
+Included:
 
 - `init.lua`
 - `lua/`
 - `lazy-lock.json`
-- 기타 설정 파일
+- Other configuration files
 
-제외:
+Excluded:
 
 - `.git`
 - `nvim-data`
-- Mason 바이너리
-- 세션, 캐시, undo, swap
+- Mason-managed binaries
+- Sessions, caches, undo files, and swap files
 
-운영 원칙:
+Operating policy:
 
-- 이 디렉터리를 공통 기준 설정으로 본다.
-- 실제 설치 시 각 OS의 Neovim 설정 디렉터리로 링크하거나 복사한다.
+- Treat this directory as the shared source-of-truth configuration
+- During installation, link or copy it into the real Neovim config directory for each OS

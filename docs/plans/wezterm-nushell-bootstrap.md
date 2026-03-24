@@ -1,232 +1,125 @@
 # WezTerm NuShell Bootstrap Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+**Goal:** Keep the repository aligned with the current `WezTerm + NuShell + Starship + zoxide + fzf + Neovim/LazyVim` baseline on both Windows and macOS.
 
-**Goal:** Windows와 mac에서 `WezTerm + NuShell + Starship + zoxide + fzf + Neovim/LazyVim` 기준의 공통 부트스트랩 구조와 설치 문서를 실제 파일 상태와 맞게 재구성한다.
-
-**Architecture:** 공통 UX 자산은 `shared/`에 두고, OS별 설치 구현은 `windows/`, `mac/`에 분리한다. `WezTerm`은 양쪽 모두 `nu -l`을 기본 진입점으로 사용하고, NuShell 설정은 표준 디렉터리에 배치하되, `Starship`과 `zoxide`의 NuShell 초기화 파일은 설치 시 autoload 계층에 생성한다. 프롬프트는 `Starship` 왼쪽 프롬프트를 기준으로 두고, NuShell 기본 `vi` indicator와 오른쪽 프롬프트 경로는 비활성화한다. Windows의 WezTerm 조합에서는 입력 redraw 안정성을 위해 `shell_integration.osc133`를 끈다.
+**Architecture:** Shared UX assets live under `shared/`, while OS-specific installers live under `windows/` and `mac/`. `WezTerm` launches `nu -l` on both platforms. NuShell configuration is deployed into the platform-standard config directory, while `Starship` and `zoxide` autoload files are generated during installation. The prompt baseline uses the `Starship` left prompt, disables NuShell's built-in `vi` indicators and right-prompt path, and disables `shell_integration.osc133` on Windows for redraw stability under WezTerm.
 
 **Tech Stack:** WezTerm, NuShell, Starship, zoxide, fzf, Neovim/LazyVim, Lua, PowerShell, Bash, Markdown, winget, Chocolatey, Homebrew
 
 ---
 
-### Task 1: Replace Shared Shell Baseline
+### Task 1: Maintain The Shared Asset Layout
 
 **Files:**
-- Delete: `shared/shell/aliases.sh`
-- Delete: `shared/shell/aliases.ps1`
-- Delete: `shared/wezterm/wezterm-shell-integration.sh`
-- Delete: `shared/tmux/.tmux.conf`
-- Create: `shared/nushell/config.nu`
-- Create: `shared/nushell/env.nu`
-- Create: `shared/nushell/login.nu`
-- Create: `shared/nushell/autoload/wezterm-integration.nu`
+- `shared/nushell/config.nu`
+- `shared/nushell/env.nu`
+- `shared/nushell/login.nu`
+- `shared/nushell/autoload/wezterm-integration.nu`
+- `shared/starship/starship.toml`
+- `shared/wezterm/wezterm.lua`
+- `shared/nvim/**`
+- `shared/fonts/**`
 
-**Step 1: Capture the old shell references**
+**Checks:**
 
-Run:
+- Shared assets stay grouped under `shared/`
+- NuShell keeps the current prompt and integration policy
+- WezTerm keeps the existing visual contract
+- Neovim and font assets remain source-of-truth snapshots
 
-```powershell
-rg -n "tmux|bash|zsh|pwsh|wezterm-shell-integration" shared docs README.md
-```
-
-Expected: the current tree still reports the old shell baseline.
-
-**Step 2: Create the NuShell baseline files**
-
-Add `config.nu`, `env.nu`, `login.nu`, and `autoload/wezterm-integration.nu` to `shared/nushell/`.
-
-**Step 3: Remove obsolete shared shell files**
-
-Delete the old shell alias files, WezTerm shell integration script, and tmux config file.
-
-**Step 4: Verify the tree shape**
-
-Run:
-
-```powershell
-Get-ChildItem shared -Recurse
-```
-
-Expected: `shared/nushell/` exists and the deleted shell/tmux files are gone.
-
-### Task 2: Update WezTerm To Launch NuShell
+### Task 2: Keep WezTerm Aligned With The NuShell Baseline
 
 **Files:**
-- Modify: `shared/wezterm/wezterm.lua`
+- `shared/wezterm/wezterm.lua`
 
-**Step 1: Verify the current default shell logic**
+**Checks:**
 
-Run:
+- Windows launches `nu.exe -l`
+- macOS launches `nu -l`
+- Existing fonts, color scheme, opacity, padding, and tab/pane UX stay intact
+- The Windows path fallback for NuShell still points to the standard install location
 
-```powershell
-rg -n "default_prog|MSYS2_PATH_TYPE|msys2|pwsh|zsh" shared/wezterm/wezterm.lua
-```
-
-Expected: the current file still points at the previous shell logic.
-
-**Step 2: Replace the default shell entrypoint**
-
-Set the Windows entrypoint to `nu.exe -l` and the mac entrypoint to `nu -l` while keeping the existing visual settings intact.
-
-**Step 3: Keep the current visual contract**
-
-Preserve fonts, color scheme, opacity, padding, tab behavior, and clipboard/split keymaps.
-
-**Step 4: Verify the edited file**
-
-Run:
-
-```powershell
-Get-Content shared/wezterm/wezterm.lua
-```
-
-Expected: the file still contains the existing appearance settings and now launches NuShell.
-
-### Task 3: Rebuild The Windows Installer Around NuShell
+### Task 3: Keep The Windows Installer Aligned
 
 **Files:**
-- Modify: `windows/packages.psd1`
-- Modify: `windows/install.ps1`
+- `windows/packages.psd1`
+- `windows/install.ps1`
 
-**Step 1: Replace the package baseline**
+**Checks:**
 
-Update `windows/packages.psd1` so that `NuShell` is a first-class package and the package list remains native-first.
+- `NuShell` remains a first-class package
+- Managed assets are staged into `%USERPROFILE%\.config\terminal-bootstrap`
+- NuShell files are deployed into `%APPDATA%\nushell`
+- `starship.nu` and `zoxide.nu` are generated into the NuShell `autoload` directory
+- The installer still uses `pwsh` only as the installer runner, not as the interactive shell baseline
 
-**Step 2: Remove the old shell-profile path**
-
-Drop `.bashrc`, `.bash_profile`, and PowerShell profile management from `windows/install.ps1`.
-
-**Step 3: Add NuShell config deployment**
-
-Stage `shared/nushell/` into the managed install root, then link or copy `config.nu`, `env.nu`, `login.nu`, and `autoload/wezterm-integration.nu` into `%APPDATA%\nushell`.
-
-**Step 4: Generate NuShell autoload files**
-
-Generate `starship.nu` and `zoxide.nu` in `%APPDATA%\nushell\autoload` during the config phase.
-
-**Step 5: Verify the Windows dry-run**
-
-Run:
+**Verification command:**
 
 ```powershell
 pwsh -NoProfile -File .\windows\install.ps1 -DryRun
 ```
 
-Expected: the stage log shows the shared 8-step structure and references NuShell instead of the old shell baseline.
-
-### Task 4: Rebuild The mac Installer Around NuShell
+### Task 4: Keep The macOS Installer Aligned
 
 **Files:**
-- Modify: `mac/Brewfile`
-- Modify: `mac/install.sh`
+- `mac/Brewfile`
+- `mac/install.sh`
 
-**Step 1: Replace the package baseline**
+**Checks:**
 
-Add `nushell` to `mac/Brewfile` and remove packages that only supported the previous shell baseline.
+- `nushell` remains part of the Homebrew baseline
+- Managed assets are staged into `~/.config/terminal-bootstrap`
+- NuShell files are deployed into `~/Library/Application Support/nushell`
+- `starship.nu` and `zoxide.nu` are generated into the NuShell `autoload` directory
+- Homebrew remains the package source and installer path, not the interactive shell baseline
 
-**Step 2: Remove shell-profile management**
-
-Drop `.zshrc` injection from `mac/install.sh`.
-
-**Step 3: Add NuShell config deployment**
-
-Stage `shared/nushell/` into the managed install root, then link or copy the config files into `~/Library/Application Support/nushell`.
-
-**Step 4: Generate NuShell autoload files**
-
-Generate `starship.nu` and `zoxide.nu` in the NuShell autoload directory during the config phase.
-
-**Step 5: Verify the mac dry-run**
-
-Run:
+**Verification command:**
 
 ```bash
 ./mac/install.sh --dry-run
 ```
 
-Expected: the stage log shows the shared 8-step structure and references NuShell instead of the old shell baseline.
-
-### Task 5: Rewrite The Installation Documentation
+### Task 5: Keep Documentation Aligned With The Current Baseline
 
 **Files:**
-- Modify: `README.md`
-- Modify: `docs/windows-setup.md`
-- Modify: `docs/mac-setup.md`
-- Modify: `docs/ux-contract.md`
-- Modify: `docs/troubleshooting.md`
+- `README.md`
+- `docs/windows-setup.md`
+- `docs/mac-setup.md`
+- `docs/ux-contract.md`
+- `docs/troubleshooting.md`
+- `docs/plans/wezterm-nushell-bootstrap-design.md`
+- `docs/plans/wezterm-nushell-bootstrap.md`
+- `shared/fonts/README.md`
+- `shared/nvim/README.md`
 
-**Step 1: Rewrite the README**
+**Checks:**
 
-Describe the new stack, folder layout, staging model, and the new design/plan entry points.
+- Documentation stays in English
+- The docs describe only the current NuShell-first baseline
+- Windows docs explain why `shell_integration.osc133` is disabled
+- Prompt behavior is documented as a single left `Starship` prompt with NuShell `vi` indicators disabled
+- `pwsh` is described only as the Windows installer entrypoint where relevant
 
-**Step 2: Rewrite the Windows setup guide**
+### Task 6: Verification
 
-Align it to the shared 8-step structure and the actual Windows installer behavior.
-
-**Step 3: Rewrite the mac setup guide**
-
-Align it to the shared 8-step structure and the actual mac installer behavior.
-
-**Step 4: Rewrite the UX contract and troubleshooting docs**
-
-Update both files to reflect the NuShell-first, native-package baseline.
-
-**Step 5: Remove references to the previous shell baseline**
-
-Run:
+**Repository checks:**
 
 ```powershell
-rg -n "tmux|MSYS2 UCRT64 bash|pwsh|zsh|wezterm-shell-integration|bashrc|bash_profile" README.md docs
-```
-
-Expected: the grep no longer reports stale shell-baseline references in the main docs.
-
-### Task 6: Final Verification
-
-**Files:**
-- Verify: `README.md`
-- Verify: `docs/**`
-- Verify: `shared/**`
-- Verify: `windows/**`
-- Verify: `mac/**`
-
-**Step 1: Inspect git status**
-
-Run:
-
-```powershell
-git status --short
-```
-
-Expected: only the intended NuShell/WezTerm redesign files are modified.
-
-**Step 2: Verify Windows dry-run**
-
-Run:
-
-```powershell
+rg -n -P "\p{Hangul}" README.md docs shared/fonts/README.md shared/nvim/README.md
 pwsh -NoProfile -File .\windows\install.ps1 -DryRun
 ```
 
-Expected: no PowerShell parse errors and the stage log is readable.
-
-**Step 3: Verify mac dry-run**
-
-Run:
+Run a repository grep for legacy shell references while excluding this plan document itself.
 
 ```bash
 ./mac/install.sh --dry-run
 ```
 
-Expected: no shell parse errors and the stage log is readable.
-
-**Step 4: Summarize manual smoke tests**
-
-Record the remaining manual checks:
+**Manual smoke tests:**
 
 - Launch WezTerm
-- Confirm NuShell starts
-- Confirm Starship renders
-- Confirm `zoxide`, `fzf`, `nvim` work
-- Confirm new tabs and splits open in the expected flow
+- Confirm that NuShell starts immediately
+- Confirm that the Starship prompt renders correctly
+- Confirm that `zoxide`, `fzf`, and `nvim` work
+- Confirm that new tabs and splits continue the expected working flow
+- On Windows, confirm that typing in WezTerm no longer shifts previous output upward

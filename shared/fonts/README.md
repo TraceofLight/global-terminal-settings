@@ -1,17 +1,17 @@
 # Fonts
 
-이 디렉터리는 설치 시 외부에서 다시 받지 않을 폰트 자산을 보관한다.
+This directory stores font assets that are kept in the repository instead of being re-downloaded during installation.
 
-현재 포함:
+Currently included:
 
 - `MonoplexKRWideNerd/`
 
-사용 원칙:
+Usage policy:
 
-- Windows/mac 공통으로 `~/.config/terminal-bootstrap/fonts/`에 스테이징
-- `WezTerm`이 `font_dirs`를 통해 직접 로드
+- Stage the assets into `~/.config/terminal-bootstrap/fonts/` on both Windows and macOS
+- Let `WezTerm` load them directly through `font_dirs`
 
-주의:
+Notes:
 
-- 이 폴더는 설치 원본 저장소다.
-- 시스템 폰트 영역에 직접 링크하거나 복사하지 않는다.
+- This directory is the installation source asset store
+- Do not link or copy these files directly into the system font directories
