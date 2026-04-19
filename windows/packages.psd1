@@ -50,6 +50,11 @@
             Chocolatey = 'bat'
         }
         @{
+            Name = 'carapace'
+            DetectCommand = 'carapace'
+            WingetId = 'rsteube.Carapace'
+        }
+        @{
             Name = 'zoxide'
             DetectCommand = 'zoxide'
             WingetId = 'ajeetdsouza.zoxide'

@@ -175,17 +175,34 @@ sync_app_configs() {
   sync_target "$INSTALL_ROOT/nushell/env.nu" "$nushell_root/env.nu"
   sync_target "$INSTALL_ROOT/nushell/login.nu" "$nushell_root/login.nu"
   sync_target "$INSTALL_ROOT/nushell/autoload/wezterm-integration.nu" "$nushell_root/autoload/wezterm-integration.nu"
+  sync_target "$INSTALL_ROOT/nushell/autoload/openclaude-integration.nu" "$nushell_root/autoload/openclaude-integration.nu"
 
   NVIM_TARGET="$CONFIG_ROOT/nvim"
 }
 
 initialize_nushell_autoload() {
-  log_stage 6 "Starship, zoxide, fzf"
+  log_stage 6 "Starship, zoxide, fzf, carapace, openclaude"
   local nushell_root
   nushell_root="$(get_nushell_root)"
   local autoload_root="$nushell_root/autoload"
   ensure_dir "$autoload_root"
+  local carapace_target="$autoload_root/carapace.nu"
   local no_op_script="# managed by terminal-bootstrap"
+
+  if command -v carapace >/dev/null 2>&1; then
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf '[dry-run] Generate NuShell Carapace autoload\n'
+    else
+      carapace _carapace nushell > "$carapace_target"
+    fi
+  else
+    printf 'warn  carapace command not found; writing no-op NuShell Carapace autoload\n' >&2
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf '[dry-run] Write NuShell Carapace autoload placeholder\n'
+    else
+      printf '%s\n' "$no_op_script" > "$carapace_target"
+    fi
+  fi
 
   if command -v starship >/dev/null 2>&1; then
     if [[ $DRY_RUN -eq 1 ]]; then
@@ -214,6 +231,21 @@ initialize_nushell_autoload() {
       printf '[dry-run] Write NuShell zoxide autoload placeholder\n'
     else
       printf '%s\n' "$no_op_script" > "$autoload_root/zoxide.nu"
+    fi
+  fi
+
+  if command -v openclaude >/dev/null 2>&1; then
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf '[dry-run] Write NuShell OpenClaude autoload marker\n'
+    else
+      printf '%s\n%s\n' '# managed by terminal-bootstrap' '# openclaude detected' > "$autoload_root/openclaude.nu"
+    fi
+  else
+    printf 'warn  openclaude command not found; writing no-op NuShell OpenClaude autoload\n' >&2
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf '[dry-run] Write NuShell OpenClaude autoload placeholder\n'
+    else
+      printf '%s\n' "$no_op_script" > "$autoload_root/openclaude.nu"
     fi
   fi
 }

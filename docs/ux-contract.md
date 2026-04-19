@@ -14,6 +14,7 @@ This document defines what must stay consistent between Windows and macOS, and w
 - `vi` and `vim` resolve to `nvim`
 - `EDITOR` and `VISUAL` are both `nvim`
 - Shared navigation tools are `rg`, `fd`, `fzf`, and `zoxide`
+- Shared command completion baseline includes `carapace`
 - The Git TUI is `lazygit`
 - The Neovim UX follows the current `LazyVim` snapshot
 - The installation guides use the same stage numbers and meanings
@@ -34,8 +35,10 @@ This document defines what must stay consistent between Windows and macOS, and w
 - Everyday file discovery: `fd`
 - Everyday text search: `rg`
 - Directory jumping: `zoxide`
+- Command completion: `carapace`
 - Editor launch: `nvim`
 - Short edit aliases: `vi`, `vim`
+- If `openclaude` is installed, NuShell should expose its managed extern layer without breaking startup when the command is absent
 
 ## Prompt Policy
 

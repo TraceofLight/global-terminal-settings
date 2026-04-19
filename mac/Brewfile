@@ -2,6 +2,7 @@ cask "wezterm"
 
 brew "bat"
 brew "btop"
+brew "carapace"
 brew "delta"
 brew "dust"
 brew "duf"

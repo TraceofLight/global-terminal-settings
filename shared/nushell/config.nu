@@ -12,12 +12,18 @@ $env.config = (
 )
 
 const wezterm_integration = ($nu.default-config-dir | path join "autoload" | path join "wezterm-integration.nu")
+const carapace_autoload = ($nu.default-config-dir | path join "autoload" | path join "carapace.nu")
 const starship_autoload = ($nu.default-config-dir | path join "autoload" | path join "starship.nu")
 const zoxide_autoload = ($nu.default-config-dir | path join "autoload" | path join "zoxide.nu")
+const openclaude_autoload = ($nu.default-config-dir | path join "autoload" | path join "openclaude.nu")
+const openclaude_integration = ($nu.default-config-dir | path join "autoload" | path join "openclaude-integration.nu")
 
 source $wezterm_integration
+source $carapace_autoload
 source $starship_autoload
 source $zoxide_autoload
+source $openclaude_autoload
+source $openclaude_integration
 
 # Starship does not fully override Nu's vi-mode prompt indicators.
 # Keep prompt rendering to a single left-prompt path in WezTerm.

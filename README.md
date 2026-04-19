@@ -1,13 +1,13 @@
 # Terminal Bootstrap
 
-This repository bootstraps a shared `WezTerm + NuShell + Starship + zoxide + fzf + Neovim/LazyVim` environment across Windows and macOS.
+This repository bootstraps a shared `WezTerm + NuShell + Starship + zoxide + fzf + carapace + Neovim/LazyVim` environment across Windows and macOS.
 
 ## Goals
 
 - Provide a shared terminal UX built on `WezTerm`
 - Use `NuShell` as the default interactive shell
 - Keep a consistent visual baseline with `Catppuccin Mocha` and `Monoplex KR Wide Nerd`
-- Preserve the current workflow around `Starship`, `zoxide`, `fzf`, `rg`, `fd`, `git`, and `lazygit`
+- Preserve the current workflow around `Starship`, `zoxide`, `fzf`, `carapace`, `rg`, `fd`, `git`, and `lazygit`
 - Treat the current local `LazyVim` setup as a managed asset
 - Keep Windows and macOS installation guides aligned to the same stage structure
 
@@ -40,7 +40,7 @@ global-terminal-settings/
   - Source font assets staged into the per-user install root under `fonts/`
 - `shared/nushell/`
   - Shared `config.nu`, `env.nu`, `login.nu`
-  - NuShell integration layer for WezTerm
+  - NuShell integration layer for WezTerm and optional `openclaude` extern wiring
 - `shared/nvim/`
   - Current `LazyVim` configuration snapshot
 - `shared/starship/starship.toml`
@@ -68,7 +68,7 @@ The installers first stage managed assets into a per-user install root and then 
 - macOS: `~/.config/nvim` by default
 - If `XDG_CONFIG_HOME` is set on macOS, the installer uses `$XDG_CONFIG_HOME/nvim`
 
-The NuShell `Starship` and `zoxide` init files are generated into the real NuShell `autoload/` directory, and `config.nu` sources them explicitly.
+The NuShell `carapace`, `Starship`, and `zoxide` init files are generated into the real NuShell `autoload/` directory, and `config.nu` sources them explicitly. The managed NuShell config also loads an `openclaude` extern layer. If `openclaude` is not installed, the integration remains a no-op and the shell still starts cleanly.
 
 On Windows, the `WezTerm + NuShell` baseline disables `shell_integration.osc133` for redraw stability. The prompt model uses a single left `Starship` prompt and disables NuShell's built-in `vi` indicators and right-prompt path.
 
@@ -81,7 +81,7 @@ Windows and macOS use the same eight installation stages.
 3. Stage managed assets
 4. Wire WezTerm
 5. Wire NuShell
-6. Wire Starship, zoxide, and fzf
+6. Wire Starship, zoxide, fzf, carapace, and optional openclaude integration
 7. Sync LazyVim
 8. Verify
 
@@ -89,6 +89,7 @@ Only the concrete commands and package sources differ.
 
 - Windows: `winget` first, `choco` only when already installed and the package allows fallback
 - macOS: `brew`
+- `openclaude` itself remains an external prerequisite; this repo only wires shell integration when the command is already available
 
 ## Entry Points
 
@@ -106,6 +107,7 @@ Included:
 - Shell UX
 - Prompt behavior
 - Navigation and search tools
+- Command completion and optional `openclaude` extern wiring
 - Fonts
 - Neovim configuration deployment
 

@@ -51,6 +51,7 @@ Key packages:
 - `nushell`
 - `neovim`
 - `starship`
+- `carapace`
 - `ripgrep`, `fd`, `fzf`, `zoxide`, `git`, `lazygit`
 - Other supporting CLIs
 
@@ -83,11 +84,13 @@ NuShell configuration files are placed in the directory reported by `nu -n -c '$
 - `login.nu`
 - `autoload/wezterm-integration.nu`
 
-### 6. Wire Starship, zoxide, and fzf
+### 6. Wire Starship, zoxide, fzf, carapace, and optional openclaude integration
 
-The installer generates `starship.nu` and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them explicitly.
+The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them explicitly.
 
 `fzf` is installed as an external CLI and is expected to be directly callable from NuShell.
+
+`openclaude` itself is not installed by this repository. Instead, the managed NuShell layer stages `autoload/openclaude-integration.nu` and writes an `autoload/openclaude.nu` marker during install. If `openclaude` is already on `PATH`, the extern layer becomes available. If not, the shell still starts normally and the OpenClaude integration remains inactive.
 
 ### 7. Sync LazyVim
 
@@ -101,7 +104,9 @@ Minimum verification:
 
 - WezTerm opens successfully and starts NuShell
 - The Starship prompt renders correctly
-- `zoxide`, `fzf`, `rg`, `fd`, `git`, and `nvim` run successfully
+- `carapace`, `zoxide`, `fzf`, `rg`, `fd`, `git`, and `nvim` run successfully
+- If `openclaude` is installed, the NuShell extern layer loads without startup errors
+- If `openclaude` is not installed, the shell still starts normally with the integration inactive
 - New tabs and splits continue the expected working flow
 
 ## Sync Policy

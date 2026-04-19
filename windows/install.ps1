@@ -299,14 +299,26 @@ function Stage-Assets {
 }
 
 function Initialize-NuAutoload {
-    Write-Stage 6 'Starship, zoxide, fzf'
+    Write-Stage 6 'Starship, zoxide, fzf, carapace, openclaude'
 
     $autoloadRoot = Join-Path (Get-NushellConfigRoot) 'autoload'
     Ensure-Directory $autoloadRoot
 
+    $carapaceTarget = Join-Path $autoloadRoot 'carapace.nu'
     $starshipTarget = Join-Path $autoloadRoot 'starship.nu'
     $zoxideTarget = Join-Path $autoloadRoot 'zoxide.nu'
     $noOpScript = "# managed by terminal-bootstrap`n"
+
+    if (Get-Command carapace -ErrorAction SilentlyContinue) {
+        Invoke-Action "Generate NuShell Carapace autoload" {
+            & carapace _carapace nushell | Set-Content -LiteralPath $carapaceTarget
+        }
+    } else {
+        Write-Warning 'carapace command not found. Writing no-op NuShell Carapace autoload.'
+        Invoke-Action "Write NuShell Carapace autoload placeholder" {
+            Set-Content -LiteralPath $carapaceTarget -Value $noOpScript
+        }
+    }
 
     if (Get-Command starship -ErrorAction SilentlyContinue) {
         Invoke-Action "Generate NuShell Starship autoload" {
@@ -327,6 +339,18 @@ function Initialize-NuAutoload {
         Write-Warning 'zoxide command not found. Writing no-op NuShell zoxide autoload.'
         Invoke-Action "Write NuShell zoxide autoload placeholder" {
             Set-Content -LiteralPath $zoxideTarget -Value $noOpScript
+        }
+    }
+
+    $openClaudeTarget = Join-Path $autoloadRoot 'openclaude.nu'
+    if (Get-Command openclaude -ErrorAction SilentlyContinue) {
+        Invoke-Action "Write NuShell OpenClaude autoload marker" {
+            Set-Content -LiteralPath $openClaudeTarget -Value "# managed by terminal-bootstrap`n# openclaude detected`n"
+        }
+    } else {
+        Write-Warning 'openclaude command not found. Writing no-op NuShell OpenClaude autoload.'
+        Invoke-Action "Write NuShell OpenClaude autoload placeholder" {
+            Set-Content -LiteralPath $openClaudeTarget -Value $noOpScript
         }
     }
 }
@@ -354,6 +378,7 @@ function Sync-AppConfigs {
     Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\env.nu') -Target (Join-Path $nushellConfigRoot 'env.nu')
     Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\login.nu') -Target (Join-Path $nushellConfigRoot 'login.nu')
     Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\autoload\wezterm-integration.nu') -Target (Join-Path $autoloadTargetRoot 'wezterm-integration.nu')
+    Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\autoload\openclaude-integration.nu') -Target (Join-Path $autoloadTargetRoot 'openclaude-integration.nu')
 
     $script:NvimTarget = $nvimTarget
 }
