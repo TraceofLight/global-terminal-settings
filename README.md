@@ -68,7 +68,7 @@ The installers first stage managed assets into a per-user install root and then 
 - macOS: `~/.config/nvim` by default
 - If `XDG_CONFIG_HOME` is set on macOS, the installer uses `$XDG_CONFIG_HOME/nvim`
 
-The NuShell `carapace`, `Starship`, and `zoxide` init files are generated into the real NuShell `autoload/` directory, and `config.nu` sources them explicitly. The managed NuShell config also loads an `openclaude` extern layer. If `openclaude` is not installed, the integration remains a no-op and the shell still starts cleanly.
+The NuShell `carapace`, `Starship`, and `zoxide` init files are generated into the real NuShell `autoload/` directory, and `config.nu` sources them when those files are present. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. The managed NuShell layer also stages `openclaude-integration.nu` and writes an `openclaude.nu` marker during install, but startup does not depend on either file. If the `openclaude` CLI is not installed, the extra OpenClaude integration stays inactive and the shell still starts cleanly.
 
 On Windows, the `WezTerm + NuShell` baseline disables `shell_integration.osc133` for redraw stability. The prompt model uses a single left `Starship` prompt and disables NuShell's built-in `vi` indicators and right-prompt path.
 

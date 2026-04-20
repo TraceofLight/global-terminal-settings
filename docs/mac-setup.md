@@ -86,11 +86,11 @@ NuShell configuration files are placed in the directory reported by `nu -n -c '$
 
 ### 6. Wire Starship, zoxide, fzf, carapace, and optional openclaude integration
 
-The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them explicitly.
+The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. Those managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup.
 
 `fzf` is installed as an external CLI and is expected to be directly callable from NuShell.
 
-`openclaude` itself is not installed by this repository. Instead, the managed NuShell layer stages `autoload/openclaude-integration.nu` and writes an `autoload/openclaude.nu` marker during install. If `openclaude` is already on `PATH`, the extern layer becomes available. If not, the shell still starts normally and the OpenClaude integration remains inactive.
+`openclaude` itself is not installed by this repository. Instead, the managed NuShell layer stages `autoload/openclaude-integration.nu` and writes an `autoload/openclaude.nu` marker during install. Startup does not depend on either file. If the `openclaude` CLI is absent, the OpenClaude integration remains inactive and the shell still starts normally.
 
 ### 7. Sync LazyVim
 

@@ -31,3 +31,6 @@ Temporary Items
 # iCloud generated files
 *.icloud
 
+# Local git worktrees
+.worktrees/
+
