@@ -83,6 +83,8 @@ NuShell configuration files are placed in `~/.config/nushell` by default. If `XD
 - `env.nu`
 - `login.nu`
 - `autoload/wezterm-integration.nu`
+- `autoload/claude-integration.nu`
+- `autoload/openclaude-integration.nu`
 
 ### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
 

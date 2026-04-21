@@ -2,7 +2,7 @@
 
 **Goal:** Keep the repository aligned with the current `WezTerm + NuShell + Starship + zoxide + fzf + Neovim/LazyVim` baseline on both Windows and macOS.
 
-**Architecture:** Shared UX assets live under `shared/`, while OS-specific installers live under `windows/` and `mac/`. `WezTerm` launches `nu -l` on both platforms. NuShell configuration is deployed into the platform-standard config directory, while `Starship` and `zoxide` autoload files are generated during installation. The prompt baseline uses the `Starship` left prompt, disables NuShell's built-in `vi` indicators and right-prompt path, and disables `shell_integration.osc133` on Windows for redraw stability under WezTerm.
+**Architecture:** Shared UX assets live under `shared/`, while OS-specific installers live under `windows/` and `mac/`. `WezTerm` launches `nu -l` on both platforms and sets `XDG_CONFIG_HOME=~/.config` so NuShell resolves its live config from `~/.config/nushell` on both OS targets. On Windows, a compatibility junction at `%APPDATA%\nushell` points at the same live config root. `carapace`, `Starship`, and `zoxide` autoload files are generated into the NuShell `autoload/` directory during installation, and optional `claude` / `openclaude` extern layers are staged as managed assets with marker files written when the matching CLI is detected. The prompt baseline uses the `Starship` left prompt, disables NuShell's built-in `vi` indicators and right-prompt path, and disables `shell_integration.osc133` on Windows for redraw stability under WezTerm.
 
 **Tech Stack:** WezTerm, NuShell, Starship, zoxide, fzf, Neovim/LazyVim, Lua, PowerShell, Bash, Markdown, winget, Chocolatey, Homebrew
 
@@ -49,8 +49,8 @@
 
 - `NuShell` remains a first-class package
 - Managed assets are staged into `%USERPROFILE%\.config\terminal-bootstrap`
-- NuShell files are deployed into `%APPDATA%\nushell`
-- `starship.nu` and `zoxide.nu` are generated into the NuShell `autoload` directory
+- NuShell files are deployed into `%USERPROFILE%\.config\nushell`, with a compatibility junction at `%APPDATA%\nushell` and a user `XDG_CONFIG_HOME` pointing at `%USERPROFILE%\.config`
+- `carapace.nu`, `starship.nu`, and `zoxide.nu` are generated into the NuShell `autoload` directory, and `claude.nu` / `openclaude.nu` markers are written when the matching CLI is present
 - The installer still uses `pwsh` only as the installer runner, not as the interactive shell baseline
 
 **Verification command:**
@@ -68,9 +68,9 @@ pwsh -NoProfile -File .\windows\install.ps1 -DryRun
 **Checks:**
 
 - `nushell` remains part of the Homebrew baseline
-- Managed assets are staged into `~/.config/terminal-bootstrap`
-- NuShell files are deployed into `~/Library/Application Support/nushell`
-- `starship.nu` and `zoxide.nu` are generated into the NuShell `autoload` directory
+- Managed assets are staged into `~/.config/terminal-bootstrap` (or `$XDG_CONFIG_HOME/terminal-bootstrap` when set)
+- NuShell files are deployed into `~/.config/nushell` (or `$XDG_CONFIG_HOME/nushell` when set), and WezTerm sets `XDG_CONFIG_HOME=~/.config` so the live NuShell session resolves from the same directory
+- `carapace.nu`, `starship.nu`, and `zoxide.nu` are generated into the NuShell `autoload` directory, and `claude.nu` / `openclaude.nu` markers are written when the matching CLI is present
 - Homebrew remains the package source and installer path, not the interactive shell baseline
 
 **Verification command:**

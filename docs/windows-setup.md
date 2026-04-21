@@ -90,6 +90,8 @@ NuShell configuration files are placed in `%USERPROFILE%\.config\nushell` on Win
 - `env.nu`
 - `login.nu`
 - `autoload\wezterm-integration.nu`
+- `autoload\claude-integration.nu`
+- `autoload\openclaude-integration.nu`
 
 On Windows, NuShell is used as the WezTerm entrypoint rather than as a separate shell-profile layer.
 

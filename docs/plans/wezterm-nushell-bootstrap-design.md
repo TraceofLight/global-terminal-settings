@@ -26,6 +26,8 @@ The shared baseline stack is fixed as follows.
 - Default interactive shell: `NuShell`
 - Prompt: `Starship`
 - Navigation: `fzf`, `zoxide`
+- Command completion: `carapace`
+- Optional CLI extern layers: `claude`, `openclaude` (wired only when the CLI is present)
 - Editor: `Neovim + LazyVim`
 
 Shared consistency is defined by user experience, not by shell binary compatibility.
@@ -109,10 +111,11 @@ NuShell assets follow this structure.
 - `shared/nushell/config.nu`
 - `shared/nushell/env.nu`
 - `shared/nushell/login.nu`
-- `shared/nushell/autoload/`
-- `shared/nushell/wezterm-integration.nu`
+- `shared/nushell/autoload/wezterm-integration.nu`
+- `shared/nushell/autoload/claude-integration.nu`
+- `shared/nushell/autoload/openclaude-integration.nu`
 
-The staging root is `~/.config/terminal-bootstrap/` on both OS targets.
+The staging root is `~/.config/terminal-bootstrap/` on both OS targets. The live NuShell config root is `~/.config/nushell/` on both OS targets. WezTerm sets `XDG_CONFIG_HOME=~/.config` so the running NuShell process resolves its config from the same location that the installer writes to, and on Windows a compatibility junction at `%APPDATA%\nushell` points at the same directory.
 
 ### 7. Documentation Model
 
@@ -123,7 +126,7 @@ Windows and macOS documentation use the same stages and the same numbering.
 3. Stage managed assets
 4. Wire WezTerm
 5. Wire NuShell
-6. Wire Starship, zoxide, and fzf
+6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
 7. Sync LazyVim
 8. Verify
 
