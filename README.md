@@ -40,7 +40,7 @@ global-terminal-settings/
   - Source font assets staged into the per-user install root under `fonts/`
 - `shared/nushell/`
   - Shared `config.nu`, `env.nu`, `login.nu`
-  - NuShell integration layer for WezTerm and optional `openclaude` extern wiring
+  - NuShell integration layer for WezTerm and optional `claude` / `openclaude` extern wiring
 - `shared/nvim/`
   - Current `LazyVim` configuration snapshot
 - `shared/starship/starship.toml`
@@ -68,7 +68,7 @@ The installers first stage managed assets into a per-user install root and then 
 - macOS: `~/.config/nvim` by default
 - If `XDG_CONFIG_HOME` is set on macOS, the installer uses `$XDG_CONFIG_HOME/nvim`
 
-The NuShell `carapace`, `Starship`, and `zoxide` init files are generated into the real NuShell `autoload/` directory, and `config.nu` sources them when those files are present. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. The managed NuShell layer also stages `openclaude-integration.nu` and writes an `openclaude.nu` marker during install, but startup does not depend on either file. If the `openclaude` CLI is not installed, the extra OpenClaude integration stays inactive and the shell still starts cleanly. On macOS, the managed WezTerm entrypoint sets `XDG_CONFIG_HOME=~/.config` so the live NuShell runtime resolves from `~/.config/nushell` instead of `~/Library/Application Support/nushell`.
+The NuShell `carapace`, `Starship`, and `zoxide` init files are generated into the real NuShell `autoload/` directory, and `config.nu` sources them when those files are present. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. The managed NuShell layer also stages `claude-integration.nu` and `openclaude-integration.nu`, and writes `claude.nu` / `openclaude.nu` markers during install, but startup does not depend on any of those files. If the `claude` or `openclaude` CLI is not installed, the corresponding integration stays inactive and the shell still starts cleanly. On macOS, the managed WezTerm entrypoint sets `XDG_CONFIG_HOME=~/.config` so the live NuShell runtime resolves from `~/.config/nushell` instead of `~/Library/Application Support/nushell`.
 
 On Windows, the `WezTerm + NuShell` baseline disables `shell_integration.osc133` for redraw stability. The prompt model uses a single left `Starship` prompt and disables NuShell's built-in `vi` indicators and right-prompt path.
 
@@ -81,7 +81,7 @@ Windows and macOS use the same eight installation stages.
 3. Stage managed assets
 4. Wire WezTerm
 5. Wire NuShell
-6. Wire Starship, zoxide, fzf, carapace, and optional openclaude integration
+6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
 7. Sync LazyVim
 8. Verify
 
@@ -89,7 +89,7 @@ Only the concrete commands and package sources differ.
 
 - Windows: `winget` first, `choco` only when already installed and the package allows fallback
 - macOS: `brew`
-- `openclaude` itself remains an external prerequisite; this repo only wires shell integration when the command is already available
+- `claude` and `openclaude` themselves remain external prerequisites; this repo only wires shell integration when the command is already available
 
 ## Entry Points
 
@@ -107,7 +107,7 @@ Included:
 - Shell UX
 - Prompt behavior
 - Navigation and search tools
-- Command completion and optional `openclaude` extern wiring
+- Command completion and optional `claude` / `openclaude` extern wiring
 - Fonts
 - Neovim configuration deployment
 

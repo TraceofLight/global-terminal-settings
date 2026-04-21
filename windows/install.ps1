@@ -330,7 +330,7 @@ function Stage-Assets {
 }
 
 function Initialize-NuAutoload {
-    Write-Stage 6 'Starship, zoxide, fzf, carapace, openclaude'
+    Write-Stage 6 'Starship, zoxide, fzf, carapace, claude, openclaude'
 
     $autoloadRoot = Join-Path (Get-NushellConfigRoot) 'autoload'
     Ensure-Directory $autoloadRoot
@@ -384,6 +384,18 @@ function Initialize-NuAutoload {
             Set-Content -LiteralPath $openClaudeTarget -Value $noOpScript
         }
     }
+
+    $claudeTarget = Join-Path $autoloadRoot 'claude.nu'
+    if (Get-Command claude -ErrorAction SilentlyContinue) {
+        Invoke-Action "Write NuShell Claude autoload marker" {
+            Set-Content -LiteralPath $claudeTarget -Value "# managed by terminal-bootstrap`n# claude detected`n"
+        }
+    } else {
+        Write-Warning 'claude command not found. Writing no-op NuShell Claude autoload.'
+        Invoke-Action "Write NuShell Claude autoload placeholder" {
+            Set-Content -LiteralPath $claudeTarget -Value $noOpScript
+        }
+    }
 }
 
 function Sync-AppConfigs {
@@ -410,6 +422,7 @@ function Sync-AppConfigs {
     Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\login.nu') -Target (Join-Path $nushellConfigRoot 'login.nu')
     Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\autoload\wezterm-integration.nu') -Target (Join-Path $autoloadTargetRoot 'wezterm-integration.nu')
     Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\autoload\openclaude-integration.nu') -Target (Join-Path $autoloadTargetRoot 'openclaude-integration.nu')
+    Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\autoload\claude-integration.nu') -Target (Join-Path $autoloadTargetRoot 'claude-integration.nu')
 
     $script:NvimTarget = $nvimTarget
 }

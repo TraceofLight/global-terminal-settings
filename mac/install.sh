@@ -188,12 +188,13 @@ sync_app_configs() {
   copy_managed_file "$INSTALL_ROOT/nushell/login.nu" "$nushell_root/login.nu"
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/wezterm-integration.nu" "$nushell_root/autoload/wezterm-integration.nu"
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/openclaude-integration.nu" "$nushell_root/autoload/openclaude-integration.nu"
+  copy_managed_file "$INSTALL_ROOT/nushell/autoload/claude-integration.nu" "$nushell_root/autoload/claude-integration.nu"
 
   NVIM_TARGET="$CONFIG_ROOT/nvim"
 }
 
 initialize_nushell_autoload() {
-  log_stage 6 "Starship, zoxide, fzf, carapace, openclaude"
+  log_stage 6 "Starship, zoxide, fzf, carapace, claude, openclaude"
   local nushell_root
   nushell_root="$(get_nushell_root)"
   local autoload_root="$nushell_root/autoload"
@@ -258,6 +259,21 @@ initialize_nushell_autoload() {
       printf '[dry-run] Write NuShell OpenClaude autoload placeholder\n'
     else
       printf '%s\n' "$no_op_script" > "$autoload_root/openclaude.nu"
+    fi
+  fi
+
+  if command -v claude >/dev/null 2>&1; then
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf '[dry-run] Write NuShell Claude autoload marker\n'
+    else
+      printf '%s\n%s\n' '# managed by terminal-bootstrap' '# claude detected' > "$autoload_root/claude.nu"
+    fi
+  else
+    printf 'warn  claude command not found; writing no-op NuShell Claude autoload\n' >&2
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf '[dry-run] Write NuShell Claude autoload placeholder\n'
+    else
+      printf '%s\n' "$no_op_script" > "$autoload_root/claude.nu"
     fi
   fi
 }

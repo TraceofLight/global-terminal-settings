@@ -17,6 +17,8 @@ const starship_autoload = ($nu.default-config-dir | path join "autoload" | path 
 const zoxide_autoload = ($nu.default-config-dir | path join "autoload" | path join "zoxide.nu")
 const openclaude_autoload = ($nu.default-config-dir | path join "autoload" | path join "openclaude.nu")
 const openclaude_integration = ($nu.default-config-dir | path join "autoload" | path join "openclaude-integration.nu")
+const claude_autoload = ($nu.default-config-dir | path join "autoload" | path join "claude.nu")
+const claude_integration = ($nu.default-config-dir | path join "autoload" | path join "claude-integration.nu")
 
 const maybe_wezterm_integration = if ($wezterm_integration | path exists) { $wezterm_integration } else { null }
 const maybe_carapace_autoload = if ($carapace_autoload | path exists) { $carapace_autoload } else { null }
@@ -24,6 +26,8 @@ const maybe_starship_autoload = if ($starship_autoload | path exists) { $starshi
 const maybe_zoxide_autoload = if ($zoxide_autoload | path exists) { $zoxide_autoload } else { null }
 const maybe_openclaude_autoload = if ($openclaude_autoload | path exists) { $openclaude_autoload } else { null }
 const maybe_openclaude_integration = if ($openclaude_integration | path exists) { $openclaude_integration } else { null }
+const maybe_claude_autoload = if ($claude_autoload | path exists) { $claude_autoload } else { null }
+const maybe_claude_integration = if ($claude_integration | path exists) { $claude_integration } else { null }
 
 source $maybe_wezterm_integration
 source $maybe_carapace_autoload
@@ -31,6 +35,8 @@ source $maybe_starship_autoload
 source $maybe_zoxide_autoload
 source $maybe_openclaude_autoload
 source $maybe_openclaude_integration
+source $maybe_claude_autoload
+source $maybe_claude_integration
 
 # Starship does not fully override Nu's vi-mode prompt indicators.
 # Keep prompt rendering to a single left-prompt path in WezTerm.

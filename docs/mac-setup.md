@@ -84,13 +84,13 @@ NuShell configuration files are placed in `~/.config/nushell` by default. If `XD
 - `login.nu`
 - `autoload/wezterm-integration.nu`
 
-### 6. Wire Starship, zoxide, fzf, carapace, and optional openclaude integration
+### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
 
 The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. Those managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup.
 
 `fzf` is installed as an external CLI and is expected to be directly callable from NuShell.
 
-`openclaude` itself is not installed by this repository. Instead, the managed NuShell layer stages `autoload/openclaude-integration.nu` and writes an `autoload/openclaude.nu` marker during install. Startup does not depend on either file. If the `openclaude` CLI is absent, the OpenClaude integration remains inactive and the shell still starts normally.
+Neither `claude` nor `openclaude` is installed by this repository. Instead, the managed NuShell layer stages `autoload/claude-integration.nu` and `autoload/openclaude-integration.nu`, and writes `autoload/claude.nu` / `autoload/openclaude.nu` markers during install. Startup does not depend on any of those files. If the `claude` or `openclaude` CLI is absent, the corresponding integration remains inactive and the shell still starts normally.
 
 ### 7. Sync LazyVim
 
@@ -105,8 +105,8 @@ Minimum verification:
 - WezTerm opens successfully and starts NuShell
 - The Starship prompt renders correctly
 - `carapace`, `zoxide`, `fzf`, `rg`, `fd`, `git`, and `nvim` run successfully
-- If `openclaude` is installed, the NuShell extern layer loads without startup errors
-- If `openclaude` is not installed, the shell still starts normally with the integration inactive
+- If `claude` or `openclaude` is installed, the matching NuShell extern layer loads without startup errors
+- If neither is installed, the shell still starts normally with both integrations inactive
 - New tabs and splits continue the expected working flow
 
 ## Sync Policy

@@ -38,7 +38,7 @@ This document defines what must stay consistent between Windows and macOS, and w
 - Command completion: `carapace`
 - Editor launch: `nvim`
 - Short edit aliases: `vi`, `vim`
-- If `openclaude` is installed, NuShell should expose its managed extern layer without breaking startup when the command is absent
+- If `claude` or `openclaude` is installed, NuShell should expose the matching managed extern layer without breaking startup when the command is absent
 
 ## Prompt Policy
 
