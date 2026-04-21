@@ -30,7 +30,7 @@ bash ./mac/install.sh
 Primary options:
 
 - `--dry-run`: print the planned actions without modifying the system
-- `--sync-mode auto|link|copy`: choose how managed assets are synchronized; default is `auto`
+- `--sync-mode auto|link|copy`: choose how managed assets are synchronized; default is `copy`
 - `--skip-packages`: skip Homebrew package installation
 - `--skip-configs`: skip asset staging and app configuration deployment
 
@@ -67,17 +67,17 @@ Managed assets are staged into `~/.config/terminal-bootstrap` by default. If `XD
 
 ### 4. Wire WezTerm
 
-The following files are linked or copied into their real locations.
+The following files are copied into their real locations by default. `--sync-mode link` or `--sync-mode auto` can opt back into link-based deployment when needed.
 
 - `shared/wezterm/wezterm.lua` -> `~/.wezterm.lua`
 - `shared/starship/starship.toml` -> `~/.config/starship.toml` by default
 - If `XDG_CONFIG_HOME` is set, `shared/starship/starship.toml` -> `$XDG_CONFIG_HOME/starship.toml`
 
-`WezTerm` launches `nu -l` as the default shell.
+`WezTerm` launches `nu -l` as the default shell and sets `XDG_CONFIG_HOME=~/.config` on macOS so NuShell resolves its active config from `~/.config/nushell`.
 
 ### 5. Wire NuShell
 
-NuShell configuration files are placed in the directory reported by `nu -n -c '$nu.default-config-dir'` when `nu` is already available. If `nu` is not available yet, the installer falls back to `~/Library/Application Support/nushell`.
+NuShell configuration files are placed in `~/.config/nushell` by default. If `XDG_CONFIG_HOME` is set, the installer uses `$XDG_CONFIG_HOME/nushell`. The managed NuShell files are copied into that directory as standalone files rather than linked, so the active shell configuration does not depend on `terminal-bootstrap/` or the repository checkout.
 
 - `config.nu`
 - `env.nu`
@@ -111,21 +111,22 @@ Minimum verification:
 
 ## Sync Policy
 
-- Default: `auto`
+- Default: `copy`
+- `copy`: always copy managed assets
 - `auto`: try links first and fall back to copy if link creation fails
 - `link`: require links and stop if link creation fails
-- `copy`: always copy managed assets
 - Existing managed targets are moved to `<target>.pre-terminal-bootstrap-<timestamp>` before replacement
 
-Why links are preferred:
+Why copy is preferred:
 
-- The repository and staging directory remain the source of truth
-- Asset changes show up immediately
+- Installed apps keep working even if the repository checkout or worktree is removed
+- Runtime configuration does not depend on staged assets remaining linked to the source checkout
+- It avoids environment-specific link permission differences
 
-Why copy is allowed:
+Why link modes still exist:
 
-- Some target paths are simpler to manage via copy
-- It reduces the need to care about environment-specific permission differences
+- Some maintenance workflows prefer the repository and staging directory to remain the source of truth
+- Asset changes can show up immediately when link-based deployment is intentional
 
 ## Notes
 

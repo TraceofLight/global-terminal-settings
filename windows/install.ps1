@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Auto', 'Link', 'Copy')]
-    [string]$SyncMode = 'Auto',
+    [string]$SyncMode = 'Copy',
     [switch]$DryRun,
     [switch]$SkipPackages,
     [switch]$SkipConfigs
@@ -145,7 +145,10 @@ function Sync-Target {
     }
     Ensure-Directory (Split-Path -Parent $Target)
 
-    if (Test-ManagedTarget -Target $Target -ExpectedSource $sourcePath) {
+    $sourceItem = Get-Item -LiteralPath $sourcePath -Force
+    $effectiveMode = if ($SyncMode -eq 'Auto') { 'Link' } else { $SyncMode }
+
+    if ($effectiveMode -ne 'Copy' -and (Test-ManagedTarget -Target $Target -ExpectedSource $sourcePath)) {
         Write-Host "skip  $Target already points to managed source"
         return
     }
@@ -153,9 +156,6 @@ function Sync-Target {
     if (Test-Path -LiteralPath $Target) {
         Backup-Target $Target
     }
-
-    $sourceItem = Get-Item -LiteralPath $sourcePath -Force
-    $effectiveMode = if ($SyncMode -eq 'Auto') { 'Link' } else { $SyncMode }
 
     if ($effectiveMode -eq 'Link') {
         $linkType = if ($sourceItem.PSIsContainer) { 'Junction' } else { 'SymbolicLink' }
@@ -180,6 +180,37 @@ function Sync-Target {
         Invoke-Action "Copy file $sourcePath -> $Target" {
             Copy-Item -LiteralPath $sourcePath -Destination $Target -Force
         }
+    }
+}
+
+function Copy-ManagedFile {
+    param(
+        [string]$Source,
+        [string]$Target
+    )
+
+    $sourcePath = Get-CanonicalPath $Source
+    Ensure-Directory (Split-Path -Parent $Target)
+
+    if (Test-Path -LiteralPath $Target) {
+        $item = Get-Item -LiteralPath $Target -Force
+        if ($item.Target -or $item.LinkType) {
+            Backup-Target $Target
+        } elseif (-not $item.PSIsContainer) {
+            $sourceHash = (Get-FileHash -LiteralPath $sourcePath).Hash
+            $targetHash = (Get-FileHash -LiteralPath $Target).Hash
+            if ($sourceHash -eq $targetHash) {
+                Write-Host "skip  $Target already matches managed source"
+                return
+            }
+            Backup-Target $Target
+        } else {
+            Backup-Target $Target
+        }
+    }
+
+    Invoke-Action "Copy managed file $sourcePath -> $Target" {
+        Copy-Item -LiteralPath $sourcePath -Destination $Target -Force
     }
 }
 
@@ -374,11 +405,11 @@ function Sync-AppConfigs {
     Sync-Target -Source (Join-Path $script:InstallRoot 'starship\starship.toml') -Target $starshipTarget
 
     Write-Stage 5 'Wire NuShell'
-    Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\config.nu') -Target (Join-Path $nushellConfigRoot 'config.nu')
-    Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\env.nu') -Target (Join-Path $nushellConfigRoot 'env.nu')
-    Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\login.nu') -Target (Join-Path $nushellConfigRoot 'login.nu')
-    Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\autoload\wezterm-integration.nu') -Target (Join-Path $autoloadTargetRoot 'wezterm-integration.nu')
-    Sync-Target -Source (Join-Path $script:InstallRoot 'nushell\autoload\openclaude-integration.nu') -Target (Join-Path $autoloadTargetRoot 'openclaude-integration.nu')
+    Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\config.nu') -Target (Join-Path $nushellConfigRoot 'config.nu')
+    Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\env.nu') -Target (Join-Path $nushellConfigRoot 'env.nu')
+    Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\login.nu') -Target (Join-Path $nushellConfigRoot 'login.nu')
+    Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\autoload\wezterm-integration.nu') -Target (Join-Path $autoloadTargetRoot 'wezterm-integration.nu')
+    Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\autoload\openclaude-integration.nu') -Target (Join-Path $autoloadTargetRoot 'openclaude-integration.nu')
 
     $script:NvimTarget = $nvimTarget
 }

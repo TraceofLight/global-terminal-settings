@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SYNC_MODE="auto"
+SYNC_MODE="copy"
 DRY_RUN=0
 SKIP_PACKAGES=0
 SKIP_CONFIGS=0
@@ -48,7 +48,7 @@ BOOTSTRAP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE_ROOT="$BOOTSTRAP_ROOT/shared"
 CONFIG_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}"
 INSTALL_ROOT="$CONFIG_ROOT/terminal-bootstrap"
-DEFAULT_NUSHELL_ROOT="$HOME/Library/Application Support/nushell"
+DEFAULT_NUSHELL_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}/nushell"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
 log_stage() {
@@ -86,7 +86,7 @@ sync_target() {
 
   ensure_dir "$(dirname "$target")"
 
-  if [[ -L "$target" ]]; then
+  if [[ "$mode" != "copy" && -L "$target" ]]; then
     local current
     current="$(readlink "$target")"
     if [[ "$current" == "$source" ]]; then
@@ -111,6 +111,27 @@ sync_target() {
   run_cmd "Copy $source -> $target" cp -R "$source" "$target"
 }
 
+copy_managed_file() {
+  local source="$1"
+  local target="$2"
+
+  ensure_dir "$(dirname "$target")"
+
+  if [[ -L "$target" ]]; then
+    backup_target "$target"
+  elif [[ -f "$target" ]]; then
+    if cmp -s "$source" "$target"; then
+      printf 'skip  %s already matches managed source\n' "$target"
+      return 0
+    fi
+    backup_target "$target"
+  elif [[ -e "$target" ]]; then
+    backup_target "$target"
+  fi
+
+  run_cmd "Copy managed file $source -> $target" cp "$source" "$target"
+}
+
 ensure_homebrew() {
   if command -v brew >/dev/null 2>&1; then
     return 0
@@ -131,15 +152,6 @@ ensure_homebrew() {
 }
 
 get_nushell_root() {
-  if command -v nu >/dev/null 2>&1; then
-    local nu_root
-    nu_root="$(nu -n -c '$nu.default-config-dir' 2>/dev/null || true)"
-    if [[ -n "$nu_root" ]]; then
-      printf '%s\n' "$nu_root"
-      return 0
-    fi
-  fi
-
   printf '%s\n' "$DEFAULT_NUSHELL_ROOT"
 }
 
@@ -171,11 +183,11 @@ sync_app_configs() {
   sync_target "$INSTALL_ROOT/starship/starship.toml" "$CONFIG_ROOT/starship.toml"
 
   log_stage 5 "Wire NuShell"
-  sync_target "$INSTALL_ROOT/nushell/config.nu" "$nushell_root/config.nu"
-  sync_target "$INSTALL_ROOT/nushell/env.nu" "$nushell_root/env.nu"
-  sync_target "$INSTALL_ROOT/nushell/login.nu" "$nushell_root/login.nu"
-  sync_target "$INSTALL_ROOT/nushell/autoload/wezterm-integration.nu" "$nushell_root/autoload/wezterm-integration.nu"
-  sync_target "$INSTALL_ROOT/nushell/autoload/openclaude-integration.nu" "$nushell_root/autoload/openclaude-integration.nu"
+  copy_managed_file "$INSTALL_ROOT/nushell/config.nu" "$nushell_root/config.nu"
+  copy_managed_file "$INSTALL_ROOT/nushell/env.nu" "$nushell_root/env.nu"
+  copy_managed_file "$INSTALL_ROOT/nushell/login.nu" "$nushell_root/login.nu"
+  copy_managed_file "$INSTALL_ROOT/nushell/autoload/wezterm-integration.nu" "$nushell_root/autoload/wezterm-integration.nu"
+  copy_managed_file "$INSTALL_ROOT/nushell/autoload/openclaude-integration.nu" "$nushell_root/autoload/openclaude-integration.nu"
 
   NVIM_TARGET="$CONFIG_ROOT/nvim"
 }

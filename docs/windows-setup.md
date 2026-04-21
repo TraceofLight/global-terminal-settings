@@ -36,7 +36,7 @@ pwsh -NoProfile -File .\windows\install.ps1
 Primary options:
 
 - `-DryRun`: print the planned actions without modifying the system
-- `-SyncMode Auto|Link|Copy`: choose how managed assets are synchronized; default is `Auto`
+- `-SyncMode Auto|Link|Copy`: choose how managed assets are synchronized; default is `Copy`
 - `-SkipPackages`: skip package installation
 - `-SkipConfigs`: skip asset staging and app configuration deployment
 
@@ -75,7 +75,7 @@ Managed assets are staged into `%USERPROFILE%\.config\terminal-bootstrap`.
 
 ### 4. Wire WezTerm
 
-The following files are linked or copied into their real locations.
+The following files are copied into their real locations by default. `-SyncMode Link` or `-SyncMode Auto` can opt back into link-based deployment when needed.
 
 - `shared/wezterm/wezterm.lua` -> `%USERPROFILE%\.wezterm.lua`
 - `shared/starship/starship.toml` -> `%USERPROFILE%\.config\starship.toml`
@@ -84,7 +84,7 @@ The following files are linked or copied into their real locations.
 
 ### 5. Wire NuShell
 
-NuShell configuration files are placed in the directory reported by `nu -n -c '$nu.default-config-dir'` when `nu` is already available. If `nu` is not available yet, the installer falls back to `%APPDATA%\nushell`.
+NuShell configuration files are placed in the directory reported by `nu -n -c '$nu.default-config-dir'` when `nu` is already available. If `nu` is not available yet, the installer falls back to `%APPDATA%\nushell`. The managed NuShell files are copied into that directory as standalone files rather than linked, so the active shell configuration does not depend on `.config\terminal-bootstrap` or the repository checkout.
 
 - `config.nu`
 - `env.nu`
@@ -122,21 +122,22 @@ Minimum verification:
 
 ## Sync Policy
 
-- Default: `Auto`
+- Default: `Copy`
+- `Copy`: always copy managed assets
 - `Auto`: try links first and fall back to copy if link creation fails
 - `Link`: require links and stop if link creation fails
-- `Copy`: always copy managed assets
 - Existing managed targets are moved to `<target>.pre-terminal-bootstrap-<timestamp>` before replacement
 
-Why links are preferred:
+Why copy is preferred:
 
-- The repository and staging directory remain the source of truth
-- Asset changes show up immediately
+- Installed apps keep working even if the repository checkout or worktree is removed
+- Runtime configuration does not depend on staged assets remaining linked to the source checkout
+- It avoids admin- and environment-specific link permission differences
 
-Why copy is allowed:
+Why link modes still exist:
 
-- Non-admin Windows environments may block symlink creation
-- Some target paths are simpler to manage via copy
+- Some maintenance workflows prefer the repository and staging directory to remain the source of truth
+- Asset changes can show up immediately when link-based deployment is intentional
 
 ## Notes
 

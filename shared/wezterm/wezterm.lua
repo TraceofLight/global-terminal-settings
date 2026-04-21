@@ -63,6 +63,9 @@ if wezterm.target_triple:find("windows") then
 else
   if wezterm.target_triple:find("darwin") then
     config.macos_window_background_blur = 20
+    config.set_environment_variables = {
+      XDG_CONFIG_HOME = wezterm.home_dir .. "/.config",
+    }
   end
   if file_exists("/opt/homebrew/bin/nu") then
     config.default_prog = { "/opt/homebrew/bin/nu", "-l" }
