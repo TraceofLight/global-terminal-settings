@@ -16,7 +16,8 @@ $script:SourceRoot = Join-Path $script:BootstrapRoot 'shared'
 $script:InstallRoot = Join-Path $HOME '.config\terminal-bootstrap'
 $script:Timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $script:PackageSpecs = $manifest.Packages
-$script:DefaultNushellConfigRoot = Join-Path $env:APPDATA 'nushell'
+$script:CanonicalNushellConfigRoot = Join-Path $HOME '.config\nushell'
+$script:LegacyNushellConfigRoot = Join-Path $env:APPDATA 'nushell'
 $script:DefaultNushellExecutable = Join-Path $env:LOCALAPPDATA 'Programs\nu\bin\nu.exe'
 
 function Write-Stage {
@@ -214,6 +215,23 @@ function Copy-ManagedFile {
     }
 }
 
+function Remove-LegacyNuAutoloadArtifacts {
+    param([string]$AutoloadRoot)
+
+    $legacyFiles = @(
+        'openclaude-completions.nu'
+    )
+
+    foreach ($legacyFile in $legacyFiles) {
+        $legacyTarget = Join-Path $AutoloadRoot $legacyFile
+        if (-not (Test-Path -LiteralPath $legacyTarget)) {
+            continue
+        }
+
+        Backup-Target $legacyTarget
+    }
+}
+
 function Test-PackageInstalled {
     param($Spec)
 
@@ -239,23 +257,101 @@ function Refresh-SessionPath {
     $env:Path = ($machinePath, $userPath) -join ';'
 }
 
-function Get-NushellConfigRoot {
-    $nuExecutable = if (Get-Command nu -ErrorAction SilentlyContinue) {
-        (Get-Command nu -ErrorAction SilentlyContinue).Source
-    } elseif (Test-Path -LiteralPath $script:DefaultNushellExecutable) {
-        $script:DefaultNushellExecutable
-    } else {
-        $null
-    }
-
-    if ($nuExecutable) {
-        $nuRoot = & $nuExecutable -n -c '$nu.default-config-dir' 2>$null
-        if (-not [string]::IsNullOrWhiteSpace($nuRoot)) {
-            return $nuRoot.Trim()
+function Set-UserEnvironmentDefaults {
+    $desiredXdgConfigHome = Join-Path $HOME '.config'
+    $currentXdgConfigHome = [Environment]::GetEnvironmentVariable('XDG_CONFIG_HOME', 'User')
+    if ($currentXdgConfigHome -ne $desiredXdgConfigHome) {
+        Invoke-Action "Set user XDG_CONFIG_HOME to $desiredXdgConfigHome" {
+            [Environment]::SetEnvironmentVariable('XDG_CONFIG_HOME', $desiredXdgConfigHome, 'User')
         }
     }
 
-    return $script:DefaultNushellConfigRoot
+    $pathEntriesToAdd = @(
+        (Join-Path $env:APPDATA 'npm')
+        (Join-Path $HOME '.local\bin')
+    ) | Where-Object { Test-Path -LiteralPath $_ }
+
+    if ($pathEntriesToAdd.Count -gt 0) {
+        $currentUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+        $userPathEntries = @($currentUserPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $updatedUserPathEntries = [System.Collections.Generic.List[string]]::new()
+        foreach ($entry in $pathEntriesToAdd) {
+            $alreadyPresent = $false
+            foreach ($existingEntry in $userPathEntries) {
+                if ((Get-CanonicalPath $existingEntry) -eq (Get-CanonicalPath $entry)) {
+                    $alreadyPresent = $true
+                    break
+                }
+            }
+
+            if (-not $alreadyPresent) {
+                $updatedUserPathEntries.Add($entry)
+            }
+        }
+
+        if ($updatedUserPathEntries.Count -gt 0) {
+            $newUserPath = (($updatedUserPathEntries + $userPathEntries) -join ';')
+            Invoke-Action "Update user PATH for terminal tooling" {
+                [Environment]::SetEnvironmentVariable('Path', $newUserPath, 'User')
+            }
+            Refresh-SessionPath
+        }
+    }
+}
+
+function Get-NushellConfigRoot {
+    return $script:CanonicalNushellConfigRoot
+}
+
+function Backup-LegacyNushellConfigRoot {
+    $legacyRoot = $script:LegacyNushellConfigRoot
+    $canonicalRoot = $script:CanonicalNushellConfigRoot
+
+    if ([string]::IsNullOrWhiteSpace($legacyRoot) -or [string]::IsNullOrWhiteSpace($canonicalRoot)) {
+        return
+    }
+
+    if ((Get-CanonicalPath $legacyRoot) -eq (Get-CanonicalPath $canonicalRoot)) {
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $legacyRoot)) {
+        return
+    }
+
+    if (Test-ManagedTarget -Target $legacyRoot -ExpectedSource $canonicalRoot) {
+        return
+    }
+
+    Backup-Target $legacyRoot
+}
+
+function Ensure-NushellCompatibilityLink {
+    $legacyRoot = $script:LegacyNushellConfigRoot
+    $canonicalRoot = $script:CanonicalNushellConfigRoot
+
+    if ([string]::IsNullOrWhiteSpace($legacyRoot) -or [string]::IsNullOrWhiteSpace($canonicalRoot)) {
+        return
+    }
+
+    if ((Get-CanonicalPath $legacyRoot) -eq (Get-CanonicalPath $canonicalRoot)) {
+        return
+    }
+
+    Ensure-Directory (Split-Path -Parent $legacyRoot)
+
+    if (Test-ManagedTarget -Target $legacyRoot -ExpectedSource $canonicalRoot) {
+        Write-Host "skip  $legacyRoot already points to managed NuShell root"
+        return
+    }
+
+    if (Test-Path -LiteralPath $legacyRoot) {
+        Backup-Target $legacyRoot
+    }
+
+    Invoke-Action "Link $legacyRoot -> $canonicalRoot" {
+        New-Item -ItemType Junction -Path $legacyRoot -Target $canonicalRoot | Out-Null
+    }
 }
 
 function Install-Package {
@@ -410,6 +506,7 @@ function Sync-AppConfigs {
 
     Ensure-Directory $configRoot
     Ensure-Directory $weztermConfigRoot
+    Backup-LegacyNushellConfigRoot
     Ensure-Directory $nushellConfigRoot
     Ensure-Directory $autoloadTargetRoot
 
@@ -417,6 +514,7 @@ function Sync-AppConfigs {
     Sync-Target -Source (Join-Path $script:InstallRoot 'starship\starship.toml') -Target $starshipTarget
 
     Write-Stage 5 'Wire NuShell'
+    Remove-LegacyNuAutoloadArtifacts -AutoloadRoot $autoloadTargetRoot
     Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\config.nu') -Target (Join-Path $nushellConfigRoot 'config.nu')
     Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\env.nu') -Target (Join-Path $nushellConfigRoot 'env.nu')
     Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\login.nu') -Target (Join-Path $nushellConfigRoot 'login.nu')
@@ -450,9 +548,11 @@ if (-not $SkipPackages) {
 }
 
 if (-not $SkipConfigs) {
+    Set-UserEnvironmentDefaults
     Stage-Assets
     Sync-AppConfigs
     Initialize-NuAutoload
+    Ensure-NushellCompatibilityLink
     Sync-NvimConfig
 }
 

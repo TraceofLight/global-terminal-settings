@@ -50,14 +50,22 @@ config.keys = {
 
 if wezterm.target_triple:find("windows") then
   local windows_home = wezterm.home_dir:gsub("\\", "/")
-  local nu_path = windows_home .. "/AppData/Local/Programs/nu/bin/nu.exe"
+  local nu_candidates = {
+    os.getenv("LOCALAPPDATA") and (os.getenv("LOCALAPPDATA"):gsub("\\", "/") .. "/Programs/nu/bin/nu.exe") or nil,
+    os.getenv("ProgramFiles") and (os.getenv("ProgramFiles"):gsub("\\", "/") .. "/nu/bin/nu.exe") or nil,
+  }
   config.win32_system_backdrop = "Acrylic"
   config.set_environment_variables = {
     HOME = windows_home,
+    XDG_CONFIG_HOME = windows_home .. "/.config",
   }
-  if file_exists(nu_path) then
-    config.default_prog = { nu_path, "-l" }
-  else
+  for _, nu_path in ipairs(nu_candidates) do
+    if nu_path and file_exists(nu_path) then
+      config.default_prog = { nu_path, "-l" }
+      break
+    end
+  end
+  if not config.default_prog then
     config.default_prog = { "nu.exe", "-l" }
   end
 else

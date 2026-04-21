@@ -80,11 +80,11 @@ The following files are copied into their real locations by default. `-SyncMode 
 - `shared/wezterm/wezterm.lua` -> `%USERPROFILE%\.wezterm.lua`
 - `shared/starship/starship.toml` -> `%USERPROFILE%\.config\starship.toml`
 
-`WezTerm` launches `nu -l` as the default shell.
+`WezTerm` launches `nu -l` as the default shell. On Windows it sets `XDG_CONFIG_HOME=%USERPROFILE%\.config`, checks standard install locations derived from the environment first, and then falls back to `nu.exe` on `PATH`.
 
 ### 5. Wire NuShell
 
-NuShell configuration files are placed in the directory reported by `nu -n -c '$nu.default-config-dir'` when `nu` is already available. If `nu` is not available yet, the installer falls back to `%APPDATA%\nushell`. The managed NuShell files are copied into that directory as standalone files rather than linked, so the active shell configuration does not depend on `.config\terminal-bootstrap` or the repository checkout.
+NuShell configuration files are placed in `%USERPROFILE%\.config\nushell` on Windows. The managed NuShell files are copied into that directory as standalone files rather than linked, so the active shell configuration does not depend on `.config\terminal-bootstrap` or the repository checkout. The installer also sets the user `XDG_CONFIG_HOME` environment variable to `%USERPROFILE%\.config` and creates a compatibility junction at `%APPDATA%\nushell` that points to `%USERPROFILE%\.config\nushell`, so standalone `nu`, `exec nu`, and WezTerm-launched sessions resolve the same live config root. When rerun for repair, the installer backs up obsolete legacy autoload artifacts such as `openclaude-completions.nu` out of the active `autoload\` directory and backs up any pre-existing legacy `%APPDATA%\nushell` tree before recreating the compatibility junction.
 
 - `config.nu`
 - `env.nu`
@@ -97,11 +97,11 @@ For the Windows `WezTerm + NuShell` baseline, `shell_integration.osc133` is disa
 
 ### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
 
-The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload\`, and `config.nu` sources them when they are present. Those managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup.
+The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload\`, and `config.nu` sources them when they are present. Those managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. `config.nu` also optionally sources `autoload\user-overrides.nu` when present; this file is reserved for user-managed aliases and scripts and is not overwritten by reinstall.
 
 `fzf` is installed as an external CLI and is expected to be directly callable from NuShell.
 
-Neither `claude` nor `openclaude` is installed by this repository. Instead, the managed NuShell layer stages `autoload\claude-integration.nu` and `autoload\openclaude-integration.nu`, and writes `autoload\claude.nu` / `autoload\openclaude.nu` markers during install. Startup does not depend on any of those files. If the `claude` or `openclaude` CLI is absent, the corresponding integration remains inactive and the shell still starts normally.
+Neither `claude` nor `openclaude` is installed by this repository. Instead, the managed NuShell layer stages `autoload\claude-integration.nu` and `autoload\openclaude-integration.nu`, and writes `autoload\claude.nu` / `autoload\openclaude.nu` markers during install. Startup does not depend on any of those files. On Windows, the installer also adds `%APPDATA%\npm` and `%USERPROFILE%\.local\bin` to the user `PATH` when those directories exist so locally installed `openclaude` and `claude.exe` remain discoverable in fresh shell sessions. If the `claude` or `openclaude` CLI is absent, the corresponding integration remains inactive and the shell still starts normally.
 
 ### 7. Sync LazyVim
 
@@ -144,5 +144,5 @@ Why link modes still exist:
 - Fonts are loaded through WezTerm `font_dirs`, not installed system-wide
 - The Windows baseline is defined around `NuShell`; other shell profile files are out of scope
 - `pwsh` remains only the installer runner, not the daily interactive shell baseline
-- On Windows, WezTerm checks the common `NuShell` install path first and falls back to `nu.exe` by name
+- On Windows, WezTerm sets `XDG_CONFIG_HOME=%USERPROFILE%\.config`, checks standard `NuShell` install locations from the environment, and falls back to `nu.exe` by name
 - If `nu` is not visible in the current shell immediately after package installation, start a fresh terminal session

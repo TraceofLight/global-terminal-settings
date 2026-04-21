@@ -86,7 +86,7 @@ NuShell configuration files are placed in `~/.config/nushell` by default. If `XD
 
 ### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
 
-The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. Those managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup.
+The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. Those managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases and scripts and is not overwritten by reinstall.
 
 `fzf` is installed as an external CLI and is expected to be directly callable from NuShell.
 
