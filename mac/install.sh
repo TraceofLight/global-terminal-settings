@@ -49,7 +49,6 @@ SOURCE_ROOT="$BOOTSTRAP_ROOT/shared"
 CONFIG_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}"
 INSTALL_ROOT="$CONFIG_ROOT/terminal-bootstrap"
 DEFAULT_NUSHELL_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}/nushell"
-TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
 log_stage() {
   printf '\n== %s. %s ==\n' "$1" "$2"
@@ -76,7 +75,11 @@ ensure_dir() {
 backup_target() {
   local target="$1"
   [[ -e "$target" || -L "$target" ]] || return 0
-  run_cmd "Backup $target" mv "$target" "$target.pre-terminal-bootstrap-$TIMESTAMP"
+  local backup="$target.pre-terminal-bootstrap"
+  if [[ -e "$backup" || -L "$backup" ]]; then
+    run_cmd "Remove stale $backup" rm -rf "$backup"
+  fi
+  run_cmd "Backup $target" mv "$target" "$backup"
 }
 
 sync_target() {

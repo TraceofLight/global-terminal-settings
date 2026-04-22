@@ -14,7 +14,6 @@ $manifest = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'packages.psd1')
 $script:BootstrapRoot = Split-Path -Parent $PSScriptRoot
 $script:SourceRoot = Join-Path $script:BootstrapRoot 'shared'
 $script:InstallRoot = Join-Path $HOME '.config\terminal-bootstrap'
-$script:Timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $script:PackageSpecs = $manifest.Packages
 $script:CanonicalNushellConfigRoot = Join-Path $HOME '.config\nushell'
 $script:LegacyNushellConfigRoot = Join-Path $env:APPDATA 'nushell'
@@ -121,8 +120,11 @@ function Backup-Target {
         return
     }
 
-    $backup = "$Target.pre-terminal-bootstrap-$($script:Timestamp)"
+    $backup = "$Target.pre-terminal-bootstrap"
     Invoke-Action "Backup $Target to $backup" {
+        if (Test-Path -LiteralPath $backup) {
+            Remove-Item -LiteralPath $backup -Recurse -Force
+        }
         Move-Item -LiteralPath $Target -Destination $backup
     }
 }

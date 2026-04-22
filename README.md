@@ -59,7 +59,7 @@ The installers first stage managed assets into a per-user install root and then 
 - Windows install root: `%USERPROFILE%\.config\terminal-bootstrap\`
 - macOS install root: `~/.config/terminal-bootstrap/` by default
 - If `XDG_CONFIG_HOME` is set on macOS, the installer uses `$XDG_CONFIG_HOME/terminal-bootstrap/`
-- Existing managed targets are moved to `<target>.pre-terminal-bootstrap-<timestamp>` before replacement
+- Existing managed targets are moved to `<target>.pre-terminal-bootstrap` before replacement; subsequent runs overwrite that file, so at most one backup per target is retained
 
 - `~/.wezterm.lua`
 - Windows: `%USERPROFILE%\.config\starship.toml`

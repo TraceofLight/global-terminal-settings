@@ -50,7 +50,7 @@ truncation_length = 3
 truncation_symbol = "…/"
 
 [git_branch]
-symbol = " "
+symbol = "󰘬  "
 style = "bg:blue"
 format = "[[ $symbol$branch ](fg:crust bg:blue)]($style)"
 
@@ -71,11 +71,11 @@ vimcmd_symbol = "[<](bold sapphire)"
 [os]
 disabled = false
 style = "bg:peach fg:crust"
-format = "[ $symbol ]($style)"
+format = "[ $symbol  ]($style)"
 
 [os.symbols]
-Macos = ""
-Ubuntu = ""
-Debian = ""
-Linux = ""
-Windows = ""
+Macos = "󰀵"
+Ubuntu = "󰕈"
+Debian = "󰣚"
+Linux = "󰌽"
+Windows = "󰍲"

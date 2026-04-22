@@ -169,7 +169,7 @@ The block is bounded by `# BEGIN managed by terminal-bootstrap` / `# END managed
 - `copy`: always copy managed assets
 - `auto`: try links first and fall back to copy if link creation fails
 - `link`: require links and stop if link creation fails
-- Existing managed targets are moved to `<target>.pre-terminal-bootstrap-<timestamp>` before replacement
+- Existing managed targets are moved to `<target>.pre-terminal-bootstrap` before replacement; each run overwrites the previous backup, so at most one backup per target is retained
 
 Why copy is preferred:
 
