@@ -12,10 +12,10 @@ if (($nu.os-info.name | str downcase) == "macos") {
 
 if (($nu.os-info.name | str downcase) == "windows") {
   let windows_bootstrap_paths = [
-    ($env.APPDATA? | path join "npm")
-    ($env.HOME? | path join ".local" | path join "bin")
-    ($env.USERPROFILE? | path join ".local" | path join "bin")
-  ] | where {|it| ($it != null) and ($it | path exists) }
+    (if ($env.APPDATA? | is-not-empty) { $env.APPDATA | path join "npm" })
+    (if ($env.HOME? | is-not-empty) { $env.HOME | path join ".local" "bin" })
+    (if ($env.USERPROFILE? | is-not-empty) { $env.USERPROFILE | path join ".local" "bin" })
+  ] | compact | where {|it| $it | path exists }
 
   $env.PATH = (($windows_bootstrap_paths | append ($env.PATH? | default [])) | uniq)
 }
@@ -24,8 +24,8 @@ if (($nu.os-info.name | str downcase) == "linux") {
   let linux_bootstrap_paths = [
     "/home/linuxbrew/.linuxbrew/bin"
     "/home/linuxbrew/.linuxbrew/sbin"
-    ($env.HOME? | path join ".local" | path join "bin")
-  ] | where {|it| ($it != null) and ($it | path exists) }
+    (if ($env.HOME? | is-not-empty) { $env.HOME | path join ".local" "bin" })
+  ] | compact | where {|it| $it | path exists }
 
   $env.PATH = (($linux_bootstrap_paths | append ($env.PATH? | default [])) | uniq)
 }
