@@ -3,7 +3,9 @@ add_newline = false
 "$schema" = "https://starship.rs/config-schema.json"
 
 format = """
-[](mauve)\
+[](peach)\
+$os\
+[](fg:peach bg:mauve)\
 $directory\
 [](fg:mauve bg:blue)\
 $git_branch\
@@ -65,3 +67,15 @@ format = "[ 󱎫 $duration]($style) "
 success_symbol = "[❯](bold green)"
 error_symbol = "[❯](bold red)"
 vimcmd_symbol = "[<](bold sapphire)"
+
+[os]
+disabled = false
+style = "bg:peach fg:crust"
+format = "[ $symbol ]($style)"
+
+[os.symbols]
+Macos = ""
+Ubuntu = ""
+Debian = ""
+Linux = ""
+Windows = ""

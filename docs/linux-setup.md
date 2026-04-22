@@ -140,6 +140,29 @@ The WSL domain distribution name is hard-coded to `Ubuntu`. If your distribution
 
 The WSL domain also invokes `nu` by the absolute path `/home/linuxbrew/.linuxbrew/bin/nu` rather than by name. `wsl.exe -- <cmd>` runs the command directly without a login shell, so the shell initialization files are not sourced and Linuxbrew's `bin` directory is not on `$PATH`. Using the absolute path sidesteps that, at the cost of assuming a standard Linuxbrew install location. If nu lives elsewhere in your WSL filesystem, edit `default_prog` in the `wsl_domains` entry accordingly.
 
+### Default WSL distribution
+
+When Docker Desktop is installed, it registers its own WSL2 distribution (`docker-desktop`) and often marks it as the default. A bare `wsl` invocation from Windows then lands in that Alpine-based distro instead of the Ubuntu one managed by this installer, which is why the prompt may appear as a root `#` shell under `/mnt/host/c/...`.
+
+Set Ubuntu as the default so `wsl` with no arguments enters the managed environment:
+
+```powershell
+wsl --set-default Ubuntu
+```
+
+This is fully reversible — `wsl --set-default docker-desktop` restores the previous default. Docker Desktop continues to work either way because it targets its own distro by name internally.
+
+### Interactive bash handoff to nu
+
+`wsl` (no command) enters the distribution's default login shell, which on Ubuntu is bash. Without shell setup, bash has no knowledge of Linuxbrew, so `nvim`, `nu`, `starship`, and similar commands resolve to "not found". The WSL stage of `linux/install.sh` therefore appends an idempotent managed block to `~/.bashrc`:
+
+- `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` so `/home/linuxbrew/.linuxbrew/bin` joins `$PATH`
+- `exec nu -l` when the shell is interactive, the user has not opted out with `TERMINAL_BOOTSTRAP_NO_HANDOFF=1`, the recursion guard `TERMINAL_BOOTSTRAP_NU_HANDOFF` is unset, and `nu` is available
+
+The combined effect: `wsl` from Windows opens bash briefly, which then re-execs into a login nu session. The handoff runs only for interactive shells, so non-interactive invocations (scripts, `wsl -- <cmd>`, VS Code Remote WSL server commands) are unaffected. To disable the handoff for a session, export `TERMINAL_BOOTSTRAP_NO_HANDOFF=1` before launching wsl.
+
+The block is bounded by `# BEGIN managed by terminal-bootstrap` / `# END managed by terminal-bootstrap` markers. The installer's idempotency check looks for the BEGIN marker and skips re-append if present. To remove the handoff permanently, delete the managed block from `~/.bashrc`.
+
 ## Sync Policy
 
 - Default: `copy`

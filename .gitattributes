@@ -1,0 +1,32 @@
+* text=auto
+
+# Shell scripts must stay LF regardless of host autocrlf setting.
+# CRLF breaks bash parsing (e.g. `set -euo pipefail` errors on WSL).
+*.sh text eol=lf
+*.bash text eol=lf
+
+# NuShell config files are parsed on Linux/macOS/Windows; keep LF
+# for consistency with the NuShell tooling.
+*.nu text eol=lf
+
+# Lua config lives in the same shared managed tree and reads cleanly
+# with LF on Windows WezTerm.
+*.lua text eol=lf
+
+# Brewfile is consumed by brew on macOS/Linux; LF matches upstream
+# Homebrew conventions.
+Brewfile text eol=lf
+
+# TOML configs (Starship, etc.) are parsed cross-platform; LF avoids
+# spurious diff/hash churn on Windows checkouts.
+*.toml text eol=lf
+
+# PowerShell install runs on Windows only, but its module data format
+# is text and benefits from consistent endings.
+*.ps1 text eol=crlf
+*.psd1 text eol=crlf
+
+# Font binaries and images stay untouched.
+*.ttf binary
+*.otf binary
+*.png binary

@@ -43,6 +43,7 @@ This document defines what must stay consistent between Windows and macOS, and w
 ## Prompt Policy
 
 - The shared prompt baseline is `Starship`
+- The leftmost prompt segment is the current OS symbol (`Macos`, `Ubuntu`, `Debian`, `Linux`, or `Windows`)
 - The prompt should prioritize current context, Git state, and timing over decorative noise
 - A fresh NuShell session should drop directly into the normal working flow
 - The WezTerm baseline uses a single left prompt

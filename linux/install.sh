@@ -256,7 +256,47 @@ sync_app_configs() {
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/openclaude-integration.nu" "$nushell_root/autoload/openclaude-integration.nu"
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/claude-integration.nu" "$nushell_root/autoload/claude-integration.nu"
 
+  if [[ "$TARGET" == "wsl" ]]; then
+    persist_bash_handoff_block
+  fi
+
   NVIM_TARGET="$CONFIG_ROOT/nvim"
+}
+
+persist_bash_handoff_block() {
+  local bashrc="$HOME/.bashrc"
+  local begin_marker="# BEGIN managed by terminal-bootstrap"
+
+  if [[ -f "$bashrc" ]] && grep -qF "$begin_marker" "$bashrc"; then
+    printf 'skip  %s already has terminal-bootstrap handoff block\n' "$bashrc"
+    return 0
+  fi
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Append terminal-bootstrap handoff block to %s\n' "$bashrc"
+    return 0
+  fi
+
+  [[ -f "$bashrc" ]] || touch "$bashrc"
+
+  cat >> "$bashrc" <<'BASHRC_EOF'
+
+# BEGIN managed by terminal-bootstrap
+if [ -d /home/linuxbrew/.linuxbrew ]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+# Hand off interactive bash sessions to nu so the managed UX
+# (Starship, carapace, vi alias, etc.) takes effect. Skip by setting
+# TERMINAL_BOOTSTRAP_NO_HANDOFF=1, or when the shell is non-interactive.
+if [[ $- == *i* ]] && [ -z "${TERMINAL_BOOTSTRAP_NO_HANDOFF:-}" ] && [ -z "${TERMINAL_BOOTSTRAP_NU_HANDOFF:-}" ] && command -v nu >/dev/null 2>&1; then
+  export TERMINAL_BOOTSTRAP_NU_HANDOFF=1
+  exec nu -l
+fi
+# END managed by terminal-bootstrap
+BASHRC_EOF
+
+  printf 'ok    Added terminal-bootstrap handoff block to %s\n' "$bashrc"
 }
 
 initialize_nushell_autoload() {
