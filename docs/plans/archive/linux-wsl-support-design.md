@@ -1,5 +1,12 @@
 # Linux and WSL Support Design
 
+> **Status:** Archived historical record. Kept as-is — later revisions did not edit the original plan.
+>
+> **Diverged from shipped code:**
+> - `TIMESTAMP`-based backup names (`<target>.pre-terminal-bootstrap-$TIMESTAMP`) were replaced with a fixed suffix (`<target>.pre-terminal-bootstrap`) plus a pre-move cleanup, so at most one backup per target survives.
+>
+> **Current source of truth:** `linux/install.sh`, `docs/linux-setup.md`.
+
 **Date:** 2026-04-22
 
 ## Goal

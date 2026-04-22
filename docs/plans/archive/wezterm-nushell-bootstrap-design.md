@@ -1,5 +1,15 @@
 # WezTerm NuShell Bootstrap Design
 
+> **Status:** Archived historical record. Kept as-is — later revisions did not edit the original plan.
+>
+> **Diverged from shipped code:**
+> - Linux and WSL targets were added after this design; see the adjacent `linux-wsl-support*.md`.
+> - The Windows Neovim deploy target moved from `%LOCALAPPDATA%\nvim` to `%USERPROFILE%\.config\nvim` for XDG alignment.
+> - Backup naming dropped its timestamp suffix; each run overwrites `<target>.pre-terminal-bootstrap`, keeping one snapshot per target.
+> - The `$os` prompt indicator and the `$git_branch` symbol were introduced after this design.
+>
+> **Current source of truth:** `shared/`, `windows/install.ps1`, `mac/install.sh`, `docs/ux-contract.md`.
+
 **Date:** 2026-03-25
 
 ## Goal

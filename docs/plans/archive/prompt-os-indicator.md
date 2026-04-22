@@ -1,5 +1,14 @@
 # Prompt OS Indicator Implementation Plan
 
+> **Status:** Archived historical record. Kept as-is — later revisions did not edit the original plan.
+>
+> **Diverged from shipped code:**
+> - Glyph codepoints were moved from legacy BMP PUA (U+F179, U+F31B, U+F306, U+F17C, U+F17A) to Material Design supplementary PUA (U+F0035, U+F0548, U+F08DA, U+F033D, U+F0372). The legacy range does not render reliably on the current WezTerm + `Monoplex KR Wide Nerd` combination; the supplementary PUA range falls back to the built-in `Symbols Nerd Font Mono`.
+> - The `$os` format gained an extra trailing space: `"[ $symbol  ]($style)"`.
+> - A matching `$git_branch.symbol` glyph (U+F062C, `md-source-branch`) was added as part of the same rendering fix, outside this plan's original scope.
+>
+> **Current source of truth:** `shared/starship/starship.toml`, `docs/ux-contract.md` (Prompt Segments section).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers-extended-cc:subagent-driven-development (recommended) or superpowers-extended-cc:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a left-most OS indicator segment to the shared Starship prompt so macOS, native Linux, WSL Ubuntu, and Windows-native NuShell sessions are visually distinguishable at a glance.

@@ -50,6 +50,38 @@ This document defines what must stay consistent between Windows and macOS, and w
 - NuShell's built-in `vi` indicators and right-prompt path are disabled
 - On Windows, the WezTerm baseline disables `shell_integration.osc133`
 
+## Prompt Segments
+
+Shared left-prompt layout lives in `shared/starship/starship.toml`. Segments, in order:
+
+| # | Segment | Background | Purpose |
+| --- | --- | --- | --- |
+| 1 | `$os` | peach | OS indicator |
+| 2 | `$directory` | mauve | Current path, 3-component truncation, prefix `…/` |
+| 3 | `$git_branch` + `$git_status` | blue | Branch icon, branch name, Git status flags |
+| 4 | `$cmd_duration` | surface overlay | Shown when the previous command ran over 2s |
+| 5 | `$character` | — | `❯` on success, red on failure, `<` in Vi command mode |
+
+### Glyph codepoint policy
+
+OS and branch glyphs use Nerd Font Material Design (`md-*`) codepoints in the **supplementary PUA** (U+F0000–U+FFFFF, 4-byte UTF-8). Legacy BMP PUA codepoints (U+E000–U+F8FF — for example U+F179 Apple, U+F31B Ubuntu, U+E0A0 Powerline branch) are intentionally avoided: the current WezTerm + `Monoplex KR Wide Nerd` combination reports cmap coverage for those codepoints but renders blank cells in practice. The supplementary-PUA range falls back reliably to the built-in `Symbols Nerd Font Mono`, so any cell that does not match a bundled glyph still renders.
+
+| Slot | Glyph | Codepoint | Nerd Font name |
+| --- | --- | --- | --- |
+| `os.symbols.Macos` | `󰀵` | U+F0035 | `md-apple` |
+| `os.symbols.Ubuntu` | `󰕈` | U+F0548 | `md-ubuntu` |
+| `os.symbols.Debian` | `󰣚` | U+F08DA | `md-debian` |
+| `os.symbols.Linux` | `󰌽` | U+F033D | `md-linux` |
+| `os.symbols.Windows` | `󰍲` | U+F0372 | `md-microsoft-windows` |
+| `git_branch.symbol` | `󰘬` | U+F062C | `md-source-branch` |
+
+### Padding
+
+Segment format strings use single-space left/right padding by default. Two exceptions:
+
+- `$os` uses an extra trailing space so the peach-colored block reads as a label, not a stray icon.
+- `$git_branch.symbol` includes two trailing spaces so the branch icon does not collide with the branch name.
+
 ## Font Policy
 
 - Fonts are not downloaded externally during installation

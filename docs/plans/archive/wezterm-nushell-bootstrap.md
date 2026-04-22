@@ -1,5 +1,15 @@
 # WezTerm NuShell Bootstrap Implementation Plan
 
+> **Status:** Archived historical record. Kept as-is — later revisions did not edit the original plan.
+>
+> **Diverged from shipped code:**
+> - Linux and WSL targets were added after this plan; see the adjacent `linux-wsl-support*.md`.
+> - The Windows Neovim deploy target moved from `%LOCALAPPDATA%\nvim` to `%USERPROFILE%\.config\nvim` for XDG alignment.
+> - Backup naming dropped its timestamp suffix; each run overwrites `<target>.pre-terminal-bootstrap`, keeping one snapshot per target.
+> - The `$os` prompt indicator and the `$git_branch` symbol were introduced after this plan.
+>
+> **Current source of truth:** `shared/`, `windows/install.ps1`, `mac/install.sh`, `docs/ux-contract.md`.
+
 **Goal:** Keep the repository aligned with the current `WezTerm + NuShell + Starship + zoxide + fzf + Neovim/LazyVim` baseline on both Windows and macOS.
 
 **Architecture:** Shared UX assets live under `shared/`, while OS-specific installers live under `windows/` and `mac/`. `WezTerm` launches `nu -l` on both platforms and sets `XDG_CONFIG_HOME=~/.config` so NuShell resolves its live config from `~/.config/nushell` on both OS targets. On Windows, a compatibility junction at `%APPDATA%\nushell` points at the same live config root. `carapace`, `Starship`, and `zoxide` autoload files are generated into the NuShell `autoload/` directory during installation, and optional `claude` / `openclaude` extern layers are staged as managed assets with marker files written when the matching CLI is detected. The prompt baseline uses the `Starship` left prompt, disables NuShell's built-in `vi` indicators and right-prompt path, and disables `shell_integration.osc133` on Windows for redraw stability under WezTerm.

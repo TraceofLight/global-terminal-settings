@@ -1,5 +1,12 @@
 # Linux and WSL Support Implementation Plan
 
+> **Status:** Archived historical record. Kept as-is — later revisions did not edit the original plan.
+>
+> **Diverged from shipped code:**
+> - `TIMESTAMP`-based backup names (`<target>.pre-terminal-bootstrap-$TIMESTAMP`) were replaced with a fixed suffix (`<target>.pre-terminal-bootstrap`) plus a pre-move cleanup, so at most one backup per target survives.
+>
+> **Current source of truth:** `linux/install.sh`, `docs/linux-setup.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a single `linux/install.sh` and supporting assets that reproduce the shared terminal baseline on native Ubuntu and inside WSL Ubuntu, with WSL deferring the WezTerm UI to the Windows-side installer.

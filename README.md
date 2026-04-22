@@ -104,10 +104,7 @@ Only the concrete commands and package sources differ.
 - macOS setup guide: [docs/mac-setup.md](docs/mac-setup.md)
 - Linux and WSL setup guide: [docs/linux-setup.md](docs/linux-setup.md)
 - Shared UX contract: [docs/ux-contract.md](docs/ux-contract.md)
-- Design document: [docs/plans/wezterm-nushell-bootstrap-design.md](docs/plans/wezterm-nushell-bootstrap-design.md)
-- Linux and WSL design document: [docs/plans/linux-wsl-support-design.md](docs/plans/linux-wsl-support-design.md)
-- Implementation plan: [docs/plans/wezterm-nushell-bootstrap.md](docs/plans/wezterm-nushell-bootstrap.md)
-- Linux and WSL implementation plan: [docs/plans/linux-wsl-support.md](docs/plans/linux-wsl-support.md)
+- Historical design and implementation plans: [docs/plans/archive/](docs/plans/archive/)
 
 ## Scope
 
