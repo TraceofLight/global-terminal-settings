@@ -20,6 +20,16 @@ if (($nu.os-info.name | str downcase) == "windows") {
   $env.PATH = (($windows_bootstrap_paths | append ($env.PATH? | default [])) | uniq)
 }
 
+if (($nu.os-info.name | str downcase) == "linux") {
+  let linux_bootstrap_paths = [
+    "/home/linuxbrew/.linuxbrew/bin"
+    "/home/linuxbrew/.linuxbrew/sbin"
+    ($env.HOME? | path join ".local" | path join "bin")
+  ] | where {|it| ($it != null) and ($it | path exists) }
+
+  $env.PATH = (($linux_bootstrap_paths | append ($env.PATH? | default [])) | uniq)
+}
+
 $env.EDITOR = "nvim"
 $env.VISUAL = "nvim"
 $env.FZF_DEFAULT_COMMAND = "fd --type f --strip-cwd-prefix"

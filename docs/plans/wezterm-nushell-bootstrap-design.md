@@ -20,7 +20,7 @@ Redefine the bootstrap structure so Windows and macOS can reproduce the same `We
 
 ### 1. Platform Model
 
-The shared baseline stack is fixed as follows.
+The shared baseline stack is fixed as follows and applies to Windows, macOS, native Ubuntu Linux, and WSL Ubuntu. WSL is a reduced install that defers the WezTerm UI layer to the Windows host; see `linux-wsl-support-design.md` for the target-specific differences.
 
 - Terminal: `WezTerm`
 - Default interactive shell: `NuShell`

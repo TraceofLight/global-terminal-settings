@@ -1,0 +1,170 @@
+# Linux Setup
+
+This document defines the Linux baseline produced by the `terminal-bootstrap` repository. It covers both native Ubuntu and WSL Ubuntu. The WSL-specific differences are listed in the final section.
+
+## Target State
+
+- Terminal: `WezTerm` (native Linux only; WSL defers to the Windows-side WezTerm)
+- Default interactive shell: `NuShell`
+- Prompt: `Starship`
+- Navigation: `zoxide`, `fzf`
+- Editor: `Neovim + LazyVim`
+- Font: `Monoplex KR Wide Nerd` (native Linux only; WSL uses Windows-side WezTerm fonts)
+- Theme: `Catppuccin Mocha`
+
+## Entry Point
+
+Prerequisites:
+
+- Ubuntu 22.04 or newer
+- `sudo` access for the initial apt step
+- Network access to install Linuxbrew and formulae
+
+Inspect the plan:
+
+```bash
+bash ./linux/install.sh --dry-run
+```
+
+Apply the baseline:
+
+```bash
+bash ./linux/install.sh
+```
+
+Primary options:
+
+- `--dry-run`: print the planned actions without modifying the system
+- `--sync-mode auto|link|copy`: choose how managed assets are synchronized; default is `copy`
+- `--skip-packages`: skip package installation
+- `--skip-configs`: skip asset staging and app configuration deployment
+- `--target linux|wsl`: override the auto-detected target
+
+The installer auto-detects WSL via `$WSL_DISTRO_NAME` and the `microsoft` marker in `/proc/version`. The detected target is printed as `Mode: native-linux` or `Mode: wsl` at start.
+
+## Install Flow
+
+### 1. Package Manager Readiness
+
+The installer first installs the minimum apt dependencies that Linuxbrew requires (`build-essential`, `curl`, `file`, `git`, `procps`) and then bootstraps Linuxbrew at `/home/linuxbrew/.linuxbrew`. Daily-use binaries are resolved through Linuxbrew's `bin` directories, which the shared `env.nu` adds to `$env.PATH` for NuShell sessions.
+
+### 2. Core Packages
+
+The package baseline is defined in [linux/Brewfile](../linux/Brewfile).
+
+Key packages:
+
+- `WezTerm` (native Linux only; filtered out in WSL mode)
+- `NuShell`
+- `Neovim`
+- `Starship`
+- `carapace`
+- `ripgrep`, `fd`, `fzf`, `zoxide`, `git`, `lazygit`
+- Other supporting CLIs
+
+### 3. Stage Managed Assets
+
+Managed assets are staged into `~/.config/terminal-bootstrap`.
+
+Native Linux stages:
+
+- `fonts/`
+- `nushell/`
+- `starship/`
+- `wezterm/`
+- `nvim/`
+
+WSL stages:
+
+- `nushell/`
+- `starship/`
+- `nvim/`
+
+### 4. Wire WezTerm
+
+Native Linux: `shared/wezterm/wezterm.lua` is copied to `~/.wezterm.lua` and `shared/starship/starship.toml` is copied to `~/.config/starship.toml`.
+
+WSL: only `shared/starship/starship.toml` is copied. The Windows-side installer manages `wezterm.lua` and registers the WSL Ubuntu domain. See the WSL Notes section below.
+
+### 5. Wire NuShell
+
+NuShell configuration files are placed in `~/.config/nushell`. The managed NuShell files are copied into that directory as standalone files.
+
+- `config.nu`
+- `env.nu`
+- `login.nu`
+- `autoload/wezterm-integration.nu`
+- `autoload/claude-integration.nu`
+- `autoload/openclaude-integration.nu`
+
+### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
+
+The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into `~/.config/nushell/autoload/`, and `config.nu` sources them when they are present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present.
+
+`fzf` is installed as an external CLI and is directly callable from NuShell.
+
+Neither `claude` nor `openclaude` is installed by this repository. The managed NuShell layer stages `autoload/claude-integration.nu` and `autoload/openclaude-integration.nu`, and writes `autoload/claude.nu` / `autoload/openclaude.nu` markers during install when the matching CLI is present. If either CLI is absent, the corresponding integration stays inactive and the shell still starts cleanly.
+
+### 7. Sync LazyVim
+
+`shared/nvim/` is copied (or linked, with `--sync-mode link`/`auto`) into `~/.config/nvim`.
+
+This repository manages configuration only. Caches and external editor tools are regenerated in the target environment.
+
+### 8. Verify
+
+Native Linux minimum verification:
+
+- WezTerm opens successfully and starts NuShell
+- The Starship prompt renders correctly
+- `carapace`, `zoxide`, `fzf`, `rg`, `fd`, `git`, `nvim` run successfully
+- If `claude` or `openclaude` is installed, the matching NuShell extern layer loads without startup errors
+
+WSL minimum verification:
+
+- On the Windows host, the WezTerm launch menu (`Ctrl+Shift+Space`) exposes a "WSL Ubuntu (nu)" entry that opens a new tab running `wsl nu -l`
+- Inside the WSL tab, the Starship prompt renders and the baseline CLIs run
+- If `claude` or `openclaude` is installed inside WSL, the matching NuShell extern layer loads
+
+## WSL Notes
+
+WSL is an intentionally reduced install. The Windows host runs WezTerm and owns font rendering, window chrome, and the `wsl_domains` entry. The WSL installer therefore skips `shared/fonts/` and `shared/wezterm/wezterm.lua` and defers the WezTerm wiring.
+
+To complete the WSL setup end to end:
+
+1. Inside WSL, run `bash ./linux/install.sh`. The installer detects WSL automatically; pass `--target wsl` to force it.
+2. On the Windows host, run `pwsh -NoProfile -File .\windows\install.ps1` from the repository root so the updated `shared/wezterm/wezterm.lua` is deployed to `%USERPROFILE%\.wezterm.lua`. The updated config registers a `wsl_domains` entry named `WSL:Ubuntu` and adds a launch menu item "WSL Ubuntu (nu)" pointing at that domain.
+3. Restart WezTerm on the Windows host. Open the launch menu with `Ctrl+Shift+Space` and pick "WSL Ubuntu (nu)" to enter the WSL nu session.
+
+The WSL domain distribution name is hard-coded to `Ubuntu`. If your distribution is named differently (for example `Ubuntu-22.04`), edit the `distribution` field in `shared/wezterm/wezterm.lua` before running the Windows installer, or override it locally.
+
+The WSL domain also invokes `nu` by the absolute path `/home/linuxbrew/.linuxbrew/bin/nu` rather than by name. `wsl.exe -- <cmd>` runs the command directly without a login shell, so the shell initialization files are not sourced and Linuxbrew's `bin` directory is not on `$PATH`. Using the absolute path sidesteps that, at the cost of assuming a standard Linuxbrew install location. If nu lives elsewhere in your WSL filesystem, edit `default_prog` in the `wsl_domains` entry accordingly.
+
+## Sync Policy
+
+- Default: `copy`
+- `copy`: always copy managed assets
+- `auto`: try links first and fall back to copy if link creation fails
+- `link`: require links and stop if link creation fails
+- Existing managed targets are moved to `<target>.pre-terminal-bootstrap-<timestamp>` before replacement
+
+Why copy is preferred:
+
+- Installed apps keep working even if the repository checkout or worktree is removed
+- Runtime configuration does not depend on staged assets remaining linked to the source checkout
+- Symlink behavior across mixed filesystems (notably WSL accessing NTFS-mounted paths) is inconsistent, so copy is the safer default
+
+Why link modes still exist:
+
+- Some maintenance workflows prefer the repository and staging directory to remain the source of truth
+- Asset changes can show up immediately when link-based deployment is intentional
+
+## Notes
+
+- Fonts are loaded through WezTerm `font_dirs` in the native Linux install, not installed system-wide
+- On WSL, fonts live on the Windows side and are not deployed to the WSL filesystem
+- Linuxbrew is used only as the installer-time source for baseline tools; once installed, each binary runs independently of `brew`
+- `mise` is available as a baseline tool but language runtimes themselves are out of scope for this repository
+- On native Linux, WezTerm launches `nu` by name from the user's PATH; Linuxbrew's `/home/linuxbrew/.linuxbrew/bin` entry added by `brew shellenv` (typically sourced from `~/.profile` or `~/.bashrc`) is what makes that resolution work. If WezTerm cannot find `nu`, verify that `command -v nu` succeeds in a login shell before launching WezTerm.
+- The current `shared/wezterm/wezterm.lua` probes `/opt/homebrew/bin/nu` and `/usr/local/bin/nu` before falling back to `nu` by name. Those macOS-style paths are harmless on Linux; they simply never match and the PATH lookup wins.
+- Unlike the macOS branch, the Linux path does not inject `XDG_CONFIG_HOME` from WezTerm because Linux already treats `~/.config` as the default XDG config root, so NuShell resolves its managed config directly.

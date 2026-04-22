@@ -107,7 +107,7 @@ Neither `claude` nor `openclaude` is installed by this repository. Instead, the 
 
 ### 7. Sync LazyVim
 
-`shared/nvim/` is linked or copied into `%LOCALAPPDATA%\nvim`.
+`shared/nvim/` is linked or copied into `%USERPROFILE%\.config\nvim`. This matches the `XDG_CONFIG_HOME` that the installer sets, so Neovim resolves its config from the same location the installer writes to. A pre-existing `%LOCALAPPDATA%\nvim` tree from earlier installs is backed up to `%LOCALAPPDATA%\nvim.pre-terminal-bootstrap-<timestamp>` on the first run after this change so it cannot be picked up as a stale fallback when `XDG_CONFIG_HOME` is unset in a given session.
 
 This repository manages configuration only. Caches and external editor tools are regenerated in the target environment.
 

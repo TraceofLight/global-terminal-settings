@@ -500,7 +500,7 @@ function Sync-AppConfigs {
     $configRoot = Join-Path $HOME '.config'
     $weztermConfigRoot = Join-Path $configRoot 'wezterm'
     $starshipTarget = Join-Path $configRoot 'starship.toml'
-    $nvimTarget = Join-Path $env:LOCALAPPDATA 'nvim'
+    $nvimTarget = Join-Path $configRoot 'nvim'
     $nushellConfigRoot = Get-NushellConfigRoot
     $autoloadTargetRoot = Join-Path $nushellConfigRoot 'autoload'
 
@@ -525,9 +525,33 @@ function Sync-AppConfigs {
     $script:NvimTarget = $nvimTarget
 }
 
+function Backup-LegacyNvimConfigRoot {
+    $legacyRoot = Join-Path $env:LOCALAPPDATA 'nvim'
+    $canonicalRoot = $script:NvimTarget
+
+    if ([string]::IsNullOrWhiteSpace($legacyRoot) -or [string]::IsNullOrWhiteSpace($canonicalRoot)) {
+        return
+    }
+
+    if ((Get-CanonicalPath $legacyRoot) -eq (Get-CanonicalPath $canonicalRoot)) {
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $legacyRoot)) {
+        return
+    }
+
+    if (Test-ManagedTarget -Target $legacyRoot -ExpectedSource $canonicalRoot) {
+        return
+    }
+
+    Backup-Target $legacyRoot
+}
+
 function Sync-NvimConfig {
     Write-Stage 7 'Sync LazyVim'
 
+    Backup-LegacyNvimConfigRoot
     Sync-Target -Source (Join-Path $script:InstallRoot 'nvim') -Target $script:NvimTarget
 }
 

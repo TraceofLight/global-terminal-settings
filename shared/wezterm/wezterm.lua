@@ -68,6 +68,20 @@ if wezterm.target_triple:find("windows") then
   if not config.default_prog then
     config.default_prog = { "nu.exe", "-l" }
   end
+  config.wsl_domains = {
+    {
+      name = "WSL:Ubuntu",
+      distribution = "Ubuntu",
+      default_cwd = "~",
+      -- `wsl.exe -- cmd` runs cmd directly without a login shell, so
+      -- PATH does not include Linuxbrew's bin. Invoke nu by absolute
+      -- path to avoid a "command not found" on tab spawn.
+      default_prog = { "/home/linuxbrew/.linuxbrew/bin/nu", "-l" },
+    },
+  }
+  config.launch_menu = {
+    { label = "WSL Ubuntu (nu)", domain = { DomainName = "WSL:Ubuntu" } },
+  }
 else
   if wezterm.target_triple:find("darwin") then
     config.macos_window_background_blur = 20
