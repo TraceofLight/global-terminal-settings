@@ -1,6 +1,8 @@
-# Terminal Bootstrap
+# Global Terminal Settings
 
 This repository bootstraps a shared `WezTerm + NuShell + Starship + zoxide + fzf + carapace + Neovim/LazyVim` environment across Windows, macOS, native Ubuntu Linux, and WSL Ubuntu.
+
+![main_preview](./docs/main_preview.png)
 
 ## Goals
 
