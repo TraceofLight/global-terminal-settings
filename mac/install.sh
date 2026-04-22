@@ -49,6 +49,7 @@ SOURCE_ROOT="$BOOTSTRAP_ROOT/shared"
 CONFIG_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}"
 INSTALL_ROOT="$CONFIG_ROOT/terminal-bootstrap"
 DEFAULT_NUSHELL_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}/nushell"
+MACOS_NUSHELL_FALLBACK="$HOME/Library/Application Support/nushell"
 
 log_stage() {
   printf '\n== %s. %s ==\n' "$1" "$2"
@@ -112,6 +113,33 @@ sync_target() {
   fi
 
   run_cmd "Copy $source -> $target" cp -R "$source" "$target"
+}
+
+link_macos_nushell_fallback() {
+  # GUI-launched processes on macOS (JetBrains IDEs, Raycast, etc.) do not
+  # inherit the XDG_CONFIG_HOME that the WezTerm entrypoint sets, so nu falls
+  # back to ~/Library/Application Support/nushell and reads a stale snapshot.
+  # Point that path at the managed nushell root so every GUI-launched nu
+  # session resolves the same live config.
+  local target="$MACOS_NUSHELL_FALLBACK"
+  local source="$DEFAULT_NUSHELL_ROOT"
+
+  ensure_dir "$(dirname "$target")"
+
+  if [[ -L "$target" ]]; then
+    local current
+    current="$(readlink "$target")"
+    if [[ "$current" == "$source" ]]; then
+      printf 'skip  %s already points to %s\n' "$target" "$source"
+      return 0
+    fi
+  fi
+
+  if [[ -e "$target" || -L "$target" ]]; then
+    backup_target "$target"
+  fi
+
+  run_cmd "Link $target -> $source" ln -s "$source" "$target"
 }
 
 copy_managed_file() {
@@ -192,6 +220,8 @@ sync_app_configs() {
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/wezterm-integration.nu" "$nushell_root/autoload/wezterm-integration.nu"
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/openclaude-integration.nu" "$nushell_root/autoload/openclaude-integration.nu"
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/claude-integration.nu" "$nushell_root/autoload/claude-integration.nu"
+
+  link_macos_nushell_fallback
 
   NVIM_TARGET="$CONFIG_ROOT/nvim"
 }

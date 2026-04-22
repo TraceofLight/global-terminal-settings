@@ -86,6 +86,8 @@ NuShell configuration files are placed in `~/.config/nushell` by default. If `XD
 - `autoload/claude-integration.nu`
 - `autoload/openclaude-integration.nu`
 
+GUI-launched processes on macOS (JetBrains IDEs, Raycast, and other applications launched outside WezTerm) do not inherit the `XDG_CONFIG_HOME=~/.config` that the WezTerm entrypoint sets, so NuShell falls back to `~/Library/Application Support/nushell` and reads a separate snapshot. To keep every GUI-launched NuShell session aligned with the managed configuration, the installer links `~/Library/Application Support/nushell` to the resolved NuShell config directory. An existing directory at the fallback path is moved to `<target>.pre-terminal-bootstrap` before the link is created, consistent with the rest of the sync policy.
+
 ### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
 
 The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. Those managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases and scripts and is not overwritten by reinstall.
@@ -133,7 +135,18 @@ Why link modes still exist:
 ## Notes
 
 - Fonts are loaded through WezTerm `font_dirs`, not installed system-wide
+- `Symbols Nerd Font Mono` is installed system-wide via the `font-symbols-only-nerd-font` Homebrew cask so GUI terminals that rely on the system font pool (JetBrains IDEs, etc.) can resolve the full Nerd Font symbol range. WezTerm uses it as a fallback after `Monoplex KR Wide Nerd` to cover codepoints that the primary font does not ship, such as the `[os]` indicator glyphs from `starship.toml`
 - The macOS baseline is also defined around `NuShell`; other shell profile files are out of scope
 - Homebrew remains the installer and package source, not the daily interactive shell baseline
 - On macOS, WezTerm checks the common Homebrew `NuShell` install paths first and falls back to `nu` by name
 - The managed `env.nu` prepends the common Homebrew bin directories so GUI-launched WezTerm sessions can still find brew-installed CLIs
+
+## JetBrains Terminal Configuration
+
+JetBrains IDE terminals on macOS do not share WezTerm's font fallback chain. To render the full Nerd Font symbol range (including the Material Design OS indicator glyphs that `Monoplex KR Wide Nerd` does not ship), configure the IDE terminal explicitly:
+
+- `Settings` -> `Tools` -> `Terminal`
+- Font: `MonoplexKR Wide Nerd`
+- Fallback: `Symbols Nerd Font Mono`
+
+This matches the WezTerm fallback chain declared in `shared/wezterm/wezterm.lua` and produces consistent glyph coverage across the two environments.

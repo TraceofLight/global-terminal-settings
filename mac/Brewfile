@@ -1,4 +1,5 @@
 cask "wezterm"
+cask "font-symbols-only-nerd-font"
 
 brew "bat"
 brew "btop"

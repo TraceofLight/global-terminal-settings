@@ -1,6 +1,7 @@
 # GUI-launched WezTerm sessions on macOS do not always inherit Homebrew's PATH.
 if (($nu.os-info.name | str downcase) == "macos") {
   let bootstrap_paths = [
+    ("~/.local/bin" | path expand)
     "/opt/homebrew/bin"
     "/opt/homebrew/sbin"
     "/usr/local/bin"
