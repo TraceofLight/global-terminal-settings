@@ -34,6 +34,13 @@ config.font = wezterm.font_with_fallback({
   "Symbols Nerd Font Mono",
 })
 
+-- Suppress missing-glyph warnings. Some processes emit stray codepoints
+-- (e.g. unassigned U+05F7) that no bundled or system font can render, and
+-- the resulting warnings are noise rather than an actionable signal. Flip
+-- back to true temporarily if a real glyph (Korean, Nerd Font icon, etc.)
+-- starts rendering as a placeholder and we need to diagnose it.
+config.warn_about_missing_glyphs = false
+
 config.window_padding = {
   left = 12,
   right = 12,
