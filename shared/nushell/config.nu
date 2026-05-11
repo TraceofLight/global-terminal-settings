@@ -55,7 +55,3 @@ alias ls = lsd
 alias ll = lsd -l
 alias la = lsd -la
 alias lt = lsd --tree
-
-if (($nu.os-info.name | str downcase) == "windows") {
-  alias btop = btop4win
-}

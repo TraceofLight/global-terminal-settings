@@ -1,6 +1,6 @@
 # Global Terminal Settings
 
-This repository bootstraps a shared `WezTerm + NuShell + Starship + zoxide + fzf + carapace + Neovim/LazyVim` environment across Windows, macOS, native Ubuntu Linux, and WSL Ubuntu.
+This repository bootstraps a shared `WezTerm + NuShell + aqua-managed CLI + Neovim/LazyVim` environment across Windows, macOS, native Ubuntu Linux, and WSL Ubuntu.
 
 ![main_preview](./docs/main_preview.png)
 
@@ -10,6 +10,7 @@ This repository bootstraps a shared `WezTerm + NuShell + Starship + zoxide + fzf
 - Use `NuShell` as the default interactive shell
 - Keep a consistent visual baseline with `Catppuccin Mocha` and `Monoplex KR Wide Nerd`
 - Preserve the current workflow around `Starship`, `zoxide`, `fzf`, `carapace`, `rg`, `fd`, `git`, and `lazygit`
+- Keep OS package managers focused on terminal bootstrap, with daily cross-platform CLIs managed by `aqua`
 - Treat the current local `LazyVim` setup as a managed asset
 - Keep Windows, macOS, and Linux installation guides aligned to the same stage structure
 
@@ -30,6 +31,7 @@ global-terminal-settings/
 │  ├─ Brewfile
 │  └─ install.sh
 ├─ shared/
+│  ├─ aqua/
 │  ├─ fonts/
 │  ├─ nushell/
 │  ├─ nvim/
@@ -44,6 +46,8 @@ global-terminal-settings/
 
 - `shared/fonts/MonoplexKRWideNerd/`
   - Source font assets staged into the per-user install root under `fonts/`
+- `shared/aqua/aqua.yaml`
+  - Managed aqua global config for daily cross-platform CLIs such as `rg`, `fd`, `fzf`, `zoxide`, `starship`, `carapace`, `lazygit`, `btm`, `nvim`, and related tools
 - `Symbols Nerd Font Mono` (macOS: `font-symbols-only-nerd-font` Homebrew cask)
   - Installed system-wide so GUI terminals (JetBrains IDEs and similar) can resolve the full Nerd Font symbol range; WezTerm references it as a fallback after `Monoplex KR Wide Nerd` for codepoints the primary font does not ship
 - `shared/nushell/`
@@ -70,14 +74,19 @@ The installers first stage managed assets into a per-user install root and then 
 - macOS: `~/.config/starship.toml` by default
 - If `XDG_CONFIG_HOME` is set on macOS, the installer uses `$XDG_CONFIG_HOME/starship.toml`
 - Windows NuShell config dir: `%USERPROFILE%\.config\nushell\`
+- Windows aqua config: `%USERPROFILE%\.config\aquaproj-aqua\aqua.yaml`
 - macOS NuShell config dir: `~/.config/nushell/` by default
 - If `XDG_CONFIG_HOME` is set on macOS, the installer uses `$XDG_CONFIG_HOME/nushell/`
+- macOS aqua config: `~/.config/aquaproj-aqua/aqua.yaml` by default, or `$XDG_CONFIG_HOME/aquaproj-aqua/aqua.yaml` when `XDG_CONFIG_HOME` is set
+- Linux aqua config: `$XDG_CONFIG_HOME/aquaproj-aqua/aqua.yaml` when set, otherwise `~/.config/aquaproj-aqua/aqua.yaml`
 - Windows: `%USERPROFILE%\.config\nvim` (aligned with the user `XDG_CONFIG_HOME` the installer sets; pre-existing `%LOCALAPPDATA%\nvim` is backed up once and skipped thereafter)
 - macOS: `~/.config/nvim` by default
 - If `XDG_CONFIG_HOME` is set on macOS, the installer uses `$XDG_CONFIG_HOME/nvim`
 - Linux (native and WSL): `$XDG_CONFIG_HOME/nvim` when set, otherwise `~/.config/nvim`
 
-The NuShell `carapace`, `Starship`, and `zoxide` init files are generated into the real NuShell `autoload/` directory, and `config.nu` sources them when those files are present. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. The managed NuShell layer also stages `claude-integration.nu` and `openclaude-integration.nu`, and writes `claude.nu` / `openclaude.nu` markers during install, but startup does not depend on any of those files. If the `claude` or `openclaude` CLI is not installed, the corresponding integration stays inactive and the shell still starts cleanly. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is user-managed and is not overwritten by reinstall, so OS-specific aliases and custom scripts can live there. On Windows, rerunning the installer repairs the live NuShell files in `~/.config/nushell`, sets user `XDG_CONFIG_HOME=~/.config`, recreates `%APPDATA%\nushell` as a compatibility junction to the same live root so standalone `nu` and `exec nu` see the same config, backs up obsolete legacy autoload artifacts such as `openclaude-completions.nu`, and backs up an existing legacy `%APPDATA%\nushell` tree before rebuilding the junction. On macOS, the managed WezTerm entrypoint sets `XDG_CONFIG_HOME=~/.config` so the live NuShell runtime resolves from `~/.config/nushell` instead of `~/Library/Application Support/nushell`. The macOS installer also links `~/Library/Application Support/nushell` to the managed NuShell config root so GUI-launched processes that do not inherit `XDG_CONFIG_HOME` (JetBrains IDE terminals, Raycast, etc.) still resolve the same live configuration.
+The installers stage `shared/aqua/aqua.yaml` into the live aqua config root and opportunistically run `aqua install -a`; lazy install remains the fallback if a package install fails during bootstrap. NuShell's `env.nu` exposes `AQUA_GLOBAL_CONFIG` when that file exists and prepends aqua's root `bin` directory when present, so aqua-managed CLIs win over fallback OS paths. On Windows, the installer also sets user `AQUA_GLOBAL_CONFIG` when absent and persists aqua's root `bin` in the user `PATH` so PowerShell and `cmd` can resolve aqua-managed commands after a new session starts. A machine-wide legacy install that remains earlier in the machine `PATH` can still win in PowerShell or `cmd`; remove that legacy install or machine `PATH` entry when fully migrating a tool to aqua.
+
+The NuShell `carapace`, `Starship`, and `zoxide` init files are generated into the real NuShell `autoload/` directory from the available binaries, including aqua-provided binaries after install, and `config.nu` sources them when those files are present. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. The managed NuShell layer also stages `claude-integration.nu` and `openclaude-integration.nu`, and writes `claude.nu` / `openclaude.nu` markers during install, but startup does not depend on any of those files. If the `claude` or `openclaude` CLI is not installed, the corresponding integration stays inactive and the shell still starts cleanly. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is user-managed and is not overwritten by reinstall, so OS-specific aliases, Java/runtime setup, and custom scripts can live there. On Windows, rerunning the installer repairs the live NuShell files in `~/.config/nushell`, sets user `XDG_CONFIG_HOME=~/.config`, recreates `%APPDATA%\nushell` as a compatibility junction to the same live root so standalone `nu` and `exec nu` see the same config, backs up obsolete legacy autoload artifacts such as `openclaude-completions.nu`, and backs up an existing legacy `%APPDATA%\nushell` tree before rebuilding the junction. On macOS, the managed WezTerm entrypoint sets `XDG_CONFIG_HOME=~/.config` so the live NuShell runtime resolves from `~/.config/nushell` instead of `~/Library/Application Support/nushell`. The macOS installer also links `~/Library/Application Support/nushell` to the managed NuShell config root so GUI-launched processes that do not inherit `XDG_CONFIG_HOME` (JetBrains IDE terminals, Raycast, etc.) still resolve the same live configuration.
 
 On Windows, the `WezTerm + NuShell` baseline disables `shell_integration.osc133` for redraw stability. The prompt model uses a single left `Starship` prompt and disables NuShell's built-in `vi` indicators and right-prompt path.
 
@@ -88,9 +97,9 @@ Windows, macOS, and Linux (native and WSL) use the same eight installation stage
 1. Package manager readiness
 2. Core packages
 3. Stage managed assets
-4. Wire WezTerm
+4. Wire WezTerm and aqua config
 5. Wire NuShell
-6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
+6. Install aqua packages and wire Starship, zoxide, carapace, and optional claude / openclaude integration
 7. Sync LazyVim
 8. Verify
 
@@ -98,7 +107,8 @@ Only the concrete commands and package sources differ.
 
 - Windows: `winget` first, `choco` only when already installed and the package allows fallback
 - macOS: `brew`
-- Linux (native and WSL Ubuntu): `apt` for Linuxbrew bootstrap dependencies, then `brew` for the baseline
+- Linux (native and WSL Ubuntu): `apt` for Linuxbrew bootstrap dependencies, then `brew` for the bootstrap baseline
+- `aqua` manages daily cross-platform CLIs after the OS bootstrap is ready
 - WSL defers font and WezTerm deployment to the Windows host; the Windows installer registers a `wsl_domains` entry so WezTerm can enter the WSL `nu` session directly
 - `claude` and `openclaude` themselves remain external prerequisites; this repo only wires shell integration when the command is already available
 
@@ -125,5 +135,5 @@ Included:
 Excluded:
 
 - Compilers and build toolchains
-- Per-language development environment automation
+- Per-language development environment automation, including Java/runtime selection
 - Parallel documentation for superseded shell designs

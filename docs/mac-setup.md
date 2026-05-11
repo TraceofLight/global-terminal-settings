@@ -49,17 +49,18 @@ Key packages:
 
 - `wezterm`
 - `nushell`
-- `neovim`
-- `starship`
-- `carapace`
-- `ripgrep`, `fd`, `fzf`, `zoxide`, `git`, `lazygit`
-- Other supporting CLIs
+- `git`
+- `aqua`
+- `font-symbols-only-nerd-font`
+
+Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available.
 
 ### 3. Stage Managed Assets
 
 Managed assets are staged into `~/.config/terminal-bootstrap` by default. If `XDG_CONFIG_HOME` is set, the installer uses `$XDG_CONFIG_HOME/terminal-bootstrap`.
 
 - `fonts/`
+- `aqua/`
 - `nushell/`
 - `starship/`
 - `wezterm/`
@@ -72,6 +73,7 @@ The following files are copied into their real locations by default. `--sync-mod
 - `shared/wezterm/wezterm.lua` -> `~/.wezterm.lua`
 - `shared/starship/starship.toml` -> `~/.config/starship.toml` by default
 - If `XDG_CONFIG_HOME` is set, `shared/starship/starship.toml` -> `$XDG_CONFIG_HOME/starship.toml`
+- `shared/aqua/aqua.yaml` -> `~/.config/aquaproj-aqua/aqua.yaml` by default, or `$XDG_CONFIG_HOME/aquaproj-aqua/aqua.yaml` when `XDG_CONFIG_HOME` is set
 
 `WezTerm` launches `nu -l` as the default shell and sets `XDG_CONFIG_HOME=~/.config` on macOS so NuShell resolves its active config from `~/.config/nushell`.
 
@@ -90,15 +92,17 @@ GUI-launched processes on macOS (JetBrains IDEs, Raycast, and other applications
 
 ### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
 
-The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. Those managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases and scripts and is not overwritten by reinstall.
+After the aqua config is copied, the installer runs `aqua install -a` when `aqua` is available. If that command fails, the installer warns and continues because aqua lazy install can retry in a later shell session.
 
-`fzf` is installed as an external CLI and is expected to be directly callable from NuShell.
+The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. These binaries are provided by aqua. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. `env.nu` sets `AQUA_GLOBAL_CONFIG` when the managed aqua config exists and prepends aqua's root `bin` directory when present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall.
+
+`fzf` and the other daily CLIs are expected to resolve through aqua.
 
 Neither `claude` nor `openclaude` is installed by this repository. Instead, the managed NuShell layer stages `autoload/claude-integration.nu` and `autoload/openclaude-integration.nu`, and writes `autoload/claude.nu` / `autoload/openclaude.nu` markers during install. Startup does not depend on any of those files. If the `claude` or `openclaude` CLI is absent, the corresponding integration remains inactive and the shell still starts normally.
 
 ### 7. Sync LazyVim
 
-`shared/nvim/` is linked or copied into `~/.config/nvim` by default. If `XDG_CONFIG_HOME` is set, the installer uses `$XDG_CONFIG_HOME/nvim`.
+`shared/nvim/` is linked or copied into `~/.config/nvim` by default. If `XDG_CONFIG_HOME` is set, the installer uses `$XDG_CONFIG_HOME/nvim`. The `nvim` binary itself is aqua-managed.
 
 This repository manages configuration only. Caches and external editor tools are regenerated in the target environment.
 
@@ -108,7 +112,7 @@ Minimum verification:
 
 - WezTerm opens successfully and starts NuShell
 - The Starship prompt renders correctly
-- `carapace`, `zoxide`, `fzf`, `rg`, `fd`, `git`, and `nvim` run successfully
+- `aqua`, `git`, and the aqua-managed `btm`, `carapace`, `zoxide`, `fzf`, `rg`, `fd`, and `nvim` run successfully
 - If `claude` or `openclaude` is installed, the matching NuShell extern layer loads without startup errors
 - If neither is installed, the shell still starts normally with both integrations inactive
 - New tabs and splits continue the expected working flow
@@ -139,7 +143,7 @@ Why link modes still exist:
 - The macOS baseline is also defined around `NuShell`; other shell profile files are out of scope
 - Homebrew remains the installer and package source, not the daily interactive shell baseline
 - On macOS, WezTerm checks the common Homebrew `NuShell` install paths first and falls back to `nu` by name
-- The managed `env.nu` prepends the common Homebrew bin directories so GUI-launched WezTerm sessions can still find brew-installed CLIs
+- The managed `env.nu` prepends the common Homebrew bin directories so GUI-launched WezTerm sessions can still find bootstrap CLIs, and prepends aqua's root `bin` when present so aqua-managed daily CLIs win
 
 ## JetBrains Terminal Configuration
 

@@ -259,6 +259,47 @@ function Refresh-SessionPath {
     $env:Path = ($machinePath, $userPath) -join ';'
 }
 
+function Add-UserPathEntries {
+    param(
+        [string[]]$Entries,
+        [string]$Reason = 'terminal tooling'
+    )
+
+    $pathEntriesToAdd = @($Entries | Where-Object {
+        -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path -LiteralPath $_)
+    })
+    if ($pathEntriesToAdd.Count -eq 0) {
+        return
+    }
+
+    $currentUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $userPathEntries = @($currentUserPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $updatedUserPathEntries = [System.Collections.Generic.List[string]]::new()
+    foreach ($entry in $pathEntriesToAdd) {
+        $alreadyPresent = $false
+        foreach ($existingEntry in $userPathEntries) {
+            if ((Get-CanonicalPath $existingEntry) -eq (Get-CanonicalPath $entry)) {
+                $alreadyPresent = $true
+                break
+            }
+        }
+
+        if (-not $alreadyPresent) {
+            $updatedUserPathEntries.Add($entry)
+        }
+    }
+
+    if ($updatedUserPathEntries.Count -eq 0) {
+        return
+    }
+
+    $newUserPath = (($updatedUserPathEntries + $userPathEntries) -join ';')
+    Invoke-Action "Update user PATH for $Reason" {
+        [Environment]::SetEnvironmentVariable('Path', $newUserPath, 'User')
+    }
+    Refresh-SessionPath
+}
+
 function Set-UserEnvironmentDefaults {
     $desiredXdgConfigHome = Join-Path $HOME '.config'
     $currentXdgConfigHome = [Environment]::GetEnvironmentVariable('XDG_CONFIG_HOME', 'User')
@@ -273,32 +314,8 @@ function Set-UserEnvironmentDefaults {
         (Join-Path $HOME '.local\bin')
     ) | Where-Object { Test-Path -LiteralPath $_ }
 
-    if ($pathEntriesToAdd.Count -gt 0) {
-        $currentUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-        $userPathEntries = @($currentUserPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-        $updatedUserPathEntries = [System.Collections.Generic.List[string]]::new()
-        foreach ($entry in $pathEntriesToAdd) {
-            $alreadyPresent = $false
-            foreach ($existingEntry in $userPathEntries) {
-                if ((Get-CanonicalPath $existingEntry) -eq (Get-CanonicalPath $entry)) {
-                    $alreadyPresent = $true
-                    break
-                }
-            }
-
-            if (-not $alreadyPresent) {
-                $updatedUserPathEntries.Add($entry)
-            }
-        }
-
-        if ($updatedUserPathEntries.Count -gt 0) {
-            $newUserPath = (($updatedUserPathEntries + $userPathEntries) -join ';')
-            Invoke-Action "Update user PATH for terminal tooling" {
-                [Environment]::SetEnvironmentVariable('Path', $newUserPath, 'User')
-            }
-            Refresh-SessionPath
-        }
-    }
+    Add-UserPathEntries -Entries $pathEntriesToAdd -Reason 'terminal tooling'
+    Refresh-SessionPath
 }
 
 function Get-NushellConfigRoot {
@@ -420,11 +437,94 @@ function Install-Packages {
 function Stage-Assets {
     Write-Stage 3 'Stage Managed Assets'
 
+    Sync-Target -Source (Join-Path $script:SourceRoot 'aqua') -Target (Join-Path $script:InstallRoot 'aqua')
     Sync-Target -Source (Join-Path $script:SourceRoot 'fonts') -Target (Join-Path $script:InstallRoot 'fonts')
     Sync-Target -Source (Join-Path $script:SourceRoot 'nushell') -Target (Join-Path $script:InstallRoot 'nushell')
     Sync-Target -Source (Join-Path $script:SourceRoot 'starship') -Target (Join-Path $script:InstallRoot 'starship')
     Sync-Target -Source (Join-Path $script:SourceRoot 'wezterm') -Target (Join-Path $script:InstallRoot 'wezterm')
     Sync-Target -Source (Join-Path $script:SourceRoot 'nvim') -Target (Join-Path $script:InstallRoot 'nvim')
+}
+
+function Set-AquaGlobalConfigDefault {
+    param([string]$ManagedConfig)
+
+    $currentUserPolicy = [Environment]::GetEnvironmentVariable('AQUA_POLICY_CONFIG', 'User')
+    if (-not [string]::IsNullOrWhiteSpace($currentUserPolicy)) {
+        $env:AQUA_POLICY_CONFIG = $currentUserPolicy
+    }
+
+    if (-not (Test-Path -LiteralPath $ManagedConfig)) {
+        return
+    }
+
+    $currentUserConfig = [Environment]::GetEnvironmentVariable('AQUA_GLOBAL_CONFIG', 'User')
+    if ([string]::IsNullOrWhiteSpace($currentUserConfig)) {
+        Invoke-Action "Set user AQUA_GLOBAL_CONFIG to $ManagedConfig" {
+            [Environment]::SetEnvironmentVariable('AQUA_GLOBAL_CONFIG', $ManagedConfig, 'User')
+        }
+        $env:AQUA_GLOBAL_CONFIG = $ManagedConfig
+        return
+    }
+
+    $env:AQUA_GLOBAL_CONFIG = $currentUserConfig
+}
+
+function Add-AquaBinToPath {
+    if (-not (Get-Command aqua -ErrorAction SilentlyContinue)) {
+        return
+    }
+
+    $aquaRoot = (& aqua root-dir 2>$null)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($aquaRoot)) {
+        return
+    }
+
+    $aquaBin = Join-Path $aquaRoot 'bin'
+    if (-not (Test-Path -LiteralPath $aquaBin)) {
+        return
+    }
+
+    Add-UserPathEntries -Entries @($aquaBin) -Reason 'aqua-managed CLIs'
+
+    $pathEntries = @($env:Path -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    foreach ($entry in $pathEntries) {
+        if ((Get-CanonicalPath $entry) -eq (Get-CanonicalPath $aquaBin)) {
+            return
+        }
+    }
+
+    $env:Path = (($aquaBin, $env:Path) -join ';')
+}
+
+function Initialize-AquaPackages {
+    $aquaConfig = Join-Path $HOME '.config\aquaproj-aqua\aqua.yaml'
+    Set-AquaGlobalConfigDefault -ManagedConfig $aquaConfig
+    $effectiveAquaConfig = [Environment]::GetEnvironmentVariable('AQUA_GLOBAL_CONFIG', 'Process')
+    if ([string]::IsNullOrWhiteSpace($effectiveAquaConfig)) {
+        $effectiveAquaConfig = $aquaConfig
+    }
+
+    if ($DryRun) {
+        Write-Host "[dry-run] Install Aqua packages from $effectiveAquaConfig"
+        return
+    }
+
+    if (-not (Get-Command aqua -ErrorAction SilentlyContinue)) {
+        Write-Warning 'aqua command not found. Skipping Aqua package install.'
+        return
+    }
+
+    Write-Host ">> Install Aqua packages from $effectiveAquaConfig"
+    try {
+        & aqua install -a
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "aqua install -a exited with code $LASTEXITCODE. Continuing; lazy install can retry later."
+        }
+    } catch {
+        Write-Warning "aqua install -a failed. Continuing; lazy install can retry later. $_"
+    }
+
+    Add-AquaBinToPath
 }
 
 function Initialize-NuAutoload {
@@ -514,6 +614,7 @@ function Sync-AppConfigs {
 
     Sync-Target -Source (Join-Path $script:InstallRoot 'wezterm\wezterm.lua') -Target (Join-Path $HOME '.wezterm.lua')
     Sync-Target -Source (Join-Path $script:InstallRoot 'starship\starship.toml') -Target $starshipTarget
+    Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'aqua\aqua.yaml') -Target (Join-Path $configRoot 'aquaproj-aqua\aqua.yaml')
 
     Write-Stage 5 'Wire NuShell'
     Remove-LegacyNuAutoloadArtifacts -AutoloadRoot $autoloadTargetRoot
@@ -577,6 +678,7 @@ if (-not $SkipConfigs) {
     Set-UserEnvironmentDefaults
     Stage-Assets
     Sync-AppConfigs
+    Initialize-AquaPackages
     Initialize-NuAutoload
     Ensure-NushellCompatibilityLink
     Sync-NvimConfig

@@ -14,4 +14,5 @@ Use `archive/` for historical plans that have already been executed. Archived fi
 ## Contents
 
 - [`aqua-core-cli-split-design.md`](aqua-core-cli-split-design.md) - design for moving cross-platform daily CLI tooling to aqua while keeping OS installers focused on bootstrap responsibilities.
+- [`aqua-core-cli-split.md`](aqua-core-cli-split.md) - implementation plan for the aqua core CLI split.
 - [`archive/`](archive/) - historical plans and designs.

@@ -57,17 +57,17 @@ Key packages:
 
 - `WezTerm`
 - `NuShell`
-- `Neovim`
-- `Starship`
-- `carapace`
-- `ripgrep`, `fd`, `fzf`, `zoxide`, `git`, `lazygit`
-- Other supporting CLIs
+- `Git`
+- `aqua`
+
+Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available.
 
 ### 3. Stage Managed Assets
 
 Managed assets are staged into `%USERPROFILE%\.config\terminal-bootstrap`.
 
 - `fonts/`
+- `aqua/`
 - `nushell/`
 - `starship/`
 - `wezterm/`
@@ -79,6 +79,7 @@ The following files are copied into their real locations by default. `-SyncMode 
 
 - `shared/wezterm/wezterm.lua` -> `%USERPROFILE%\.wezterm.lua`
 - `shared/starship/starship.toml` -> `%USERPROFILE%\.config\starship.toml`
+- `shared/aqua/aqua.yaml` -> `%USERPROFILE%\.config\aquaproj-aqua\aqua.yaml`
 
 `WezTerm` launches `nu -l` as the default shell. On Windows it sets `XDG_CONFIG_HOME=%USERPROFILE%\.config`, checks standard install locations derived from the environment first, and then falls back to `nu.exe` on `PATH`.
 
@@ -99,15 +100,17 @@ For the Windows `WezTerm + NuShell` baseline, `shell_integration.osc133` is disa
 
 ### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
 
-The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload\`, and `config.nu` sources them when they are present. Those managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. `config.nu` also optionally sources `autoload\user-overrides.nu` when present; this file is reserved for user-managed aliases and scripts and is not overwritten by reinstall.
+After the aqua config is copied, the installer sets user `AQUA_GLOBAL_CONFIG` to `%USERPROFILE%\.config\aquaproj-aqua\aqua.yaml` when the user has not already set a custom value, then runs `aqua install -a` when `aqua` is available. If that command fails, the installer warns and continues because aqua lazy install can retry in a later shell session.
 
-`fzf` is installed as an external CLI and is expected to be directly callable from NuShell.
+The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload\`, and `config.nu` sources them when they are present. These binaries are provided by aqua. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. The installer adds aqua's root `bin` directory to the user `PATH` after package installation so aqua-managed CLIs can resolve in fresh PowerShell and `cmd` sessions. A machine-wide legacy install that remains earlier in the machine `PATH` can still win there; remove that legacy install or machine `PATH` entry when fully migrating a tool to aqua. `env.nu` sets `XDG_CONFIG_HOME` and `STARSHIP_CONFIG` when they are absent, sets `AQUA_GLOBAL_CONFIG` when `%USERPROFILE%\.config\aquaproj-aqua\aqua.yaml` exists, and prepends both aqua's root `bin` directory and the Windows aqua executable directory when present, so managed NuShell sessions prefer aqua even when launched from GUI tools such as JetBrains IDEs with stale environment variables. `config.nu` also optionally sources `autoload\user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall. If a runtime such as Java needs a custom aqua registry or different version policy, point user `AQUA_GLOBAL_CONFIG` or `user-overrides.nu` at a user-owned aqua config that includes the managed package list plus the local runtime package. If that user config uses a non-standard registry, also set user `AQUA_POLICY_CONFIG`; the installer carries the user policy value into the aqua install process.
+
+`fzf` and the other daily CLIs are expected to resolve through aqua.
 
 Neither `claude` nor `openclaude` is installed by this repository. Instead, the managed NuShell layer stages `autoload\claude-integration.nu` and `autoload\openclaude-integration.nu`, and writes `autoload\claude.nu` / `autoload\openclaude.nu` markers during install. Startup does not depend on any of those files. On Windows, the installer also adds `%APPDATA%\npm` and `%USERPROFILE%\.local\bin` to the user `PATH` when those directories exist so locally installed `openclaude` and `claude.exe` remain discoverable in fresh shell sessions. If the `claude` or `openclaude` CLI is absent, the corresponding integration remains inactive and the shell still starts normally.
 
 ### 7. Sync LazyVim
 
-`shared/nvim/` is linked or copied into `%USERPROFILE%\.config\nvim`. This matches the `XDG_CONFIG_HOME` that the installer sets, so Neovim resolves its config from the same location the installer writes to. A pre-existing `%LOCALAPPDATA%\nvim` tree from earlier installs is backed up to `%LOCALAPPDATA%\nvim.pre-terminal-bootstrap` on the first run after this change so it cannot be picked up as a stale fallback when `XDG_CONFIG_HOME` is unset in a given session.
+`shared/nvim/` is linked or copied into `%USERPROFILE%\.config\nvim`. This matches the `XDG_CONFIG_HOME` that the installer sets, so the aqua-managed `nvim` binary resolves its config from the same location the installer writes to. A pre-existing `%LOCALAPPDATA%\nvim` tree from earlier installs is backed up to `%LOCALAPPDATA%\nvim.pre-terminal-bootstrap` on the first run after this change so it cannot be picked up as a stale fallback when `XDG_CONFIG_HOME` is unset in a given session.
 
 This repository manages configuration only. Caches and external editor tools are regenerated in the target environment.
 
@@ -117,7 +120,7 @@ Minimum verification:
 
 - WezTerm opens successfully and starts NuShell
 - The Starship prompt renders correctly
-- `carapace`, `zoxide`, `fzf`, `rg`, `fd`, `git`, and `nvim` run successfully
+- `aqua`, `git`, and the aqua-managed `btm`, `carapace`, `zoxide`, `fzf`, `rg`, `fd`, and `nvim` run successfully
 - If `claude` or `openclaude` is installed, the matching NuShell extern layer loads without startup errors
 - If neither is installed, the shell still starts normally with both integrations inactive
 - New tabs and splits continue the expected working flow

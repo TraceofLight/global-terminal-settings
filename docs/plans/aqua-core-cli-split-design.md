@@ -27,25 +27,28 @@ aqua becomes responsible for cross-platform CLI tools that do not need OS-specif
 - delta
 - lazygit
 - dust
+- bottom (`btm`)
 - duf
 - lsd
 - fastfetch
 - zoxide
 - Starship
 - carapace
+- Neovim
+- navi
 
 Language runtimes and environment-specific SDKs remain user-managed. Java, Node, Python, Ruby, company SDKs, and project-local runtime policies belong in `autoload/user-overrides.nu`, a user's own aqua config, or a project config.
 
 ## Configuration Shape
 
-The repository should add a managed aqua global configuration under `shared/aqua/aqua.yaml`. Installers should stage it to the user's config tree and make NuShell expose it through `AQUA_GLOBAL_CONFIG`.
+The repository should add a managed aqua global configuration under `shared/aqua/aqua.yaml`. Installers should stage it to the user's config tree as `aquaproj-aqua/aqua.yaml` and make NuShell expose it through `AQUA_GLOBAL_CONFIG`.
 
 NuShell should prepend aqua's root `bin` directory to `PATH` so aqua proxy links resolve before fallback OS paths. The root should follow aqua defaults unless `AQUA_ROOT_DIR` is already set:
 
 - Windows: `%LOCALAPPDATA%\aquaproj-aqua`
 - macOS/Linux: `${XDG_DATA_HOME:-$HOME/.local/share}/aquaproj-aqua`
 
-The installer may run `aqua install --all` after staging the global config when `aqua` is available. Lazy install remains the safety net, so a transient install failure should not prevent shell startup.
+The installer may run `aqua install -a` after staging the global config when `aqua` is available. Lazy install remains the safety net, so a transient install failure should not prevent shell startup.
 
 ## Package Manager Changes
 
@@ -67,7 +70,7 @@ If `aqua` is missing, NuShell should still start. The aqua PATH entry can be cal
 
 If the aqua global config is absent, `AQUA_GLOBAL_CONFIG` should not point to a missing file.
 
-If `aqua install --all` fails, installers should warn and continue to deploy shell configuration. This keeps first login repairable and lets aqua lazy install retry later.
+If `aqua install -a` fails, installers should warn and continue to deploy shell configuration. This keeps first login repairable and lets aqua lazy install retry later.
 
 ## Testing
 

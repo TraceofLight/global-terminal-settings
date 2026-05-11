@@ -228,6 +228,7 @@ install_packages() {
 stage_assets() {
   log_stage 3 "Stage Managed Assets"
 
+  sync_target "$SOURCE_ROOT/aqua" "$INSTALL_ROOT/aqua"
   if [[ "$TARGET" == "linux" ]]; then
     sync_target "$SOURCE_ROOT/fonts" "$INSTALL_ROOT/fonts"
     sync_target "$SOURCE_ROOT/wezterm" "$INSTALL_ROOT/wezterm"
@@ -250,6 +251,7 @@ sync_app_configs() {
     printf 'skip  WezTerm wiring (WSL target; Windows-side installer manages wezterm.lua)\n'
   fi
   sync_target "$INSTALL_ROOT/starship/starship.toml" "$CONFIG_ROOT/starship.toml"
+  copy_managed_file "$INSTALL_ROOT/aqua/aqua.yaml" "$CONFIG_ROOT/aquaproj-aqua/aqua.yaml"
 
   log_stage 5 "Wire NuShell"
   copy_managed_file "$INSTALL_ROOT/nushell/config.nu" "$nushell_root/config.nu"
@@ -264,6 +266,48 @@ sync_app_configs() {
   fi
 
   NVIM_TARGET="$CONFIG_ROOT/nvim"
+}
+
+prepend_aqua_bin_to_path() {
+  command -v aqua >/dev/null 2>&1 || return 0
+
+  local aqua_root
+  aqua_root="$(aqua root-dir 2>/dev/null || true)"
+  [[ -n "$aqua_root" ]] || return 0
+
+  local aqua_bin="$aqua_root/bin"
+  [[ -d "$aqua_bin" ]] || return 0
+
+  case ":$PATH:" in
+    *":$aqua_bin:"*)
+      ;;
+    *)
+      export PATH="$aqua_bin:$PATH"
+      ;;
+  esac
+}
+
+initialize_aqua_packages() {
+  local aqua_config="$CONFIG_ROOT/aquaproj-aqua/aqua.yaml"
+  if [[ -f "$aqua_config" ]]; then
+    export AQUA_GLOBAL_CONFIG="$aqua_config"
+  fi
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Install Aqua packages from %s\n' "$aqua_config"
+    return 0
+  fi
+
+  if ! command -v aqua >/dev/null 2>&1; then
+    printf 'warn  aqua command not found; skipping Aqua package install\n' >&2
+    return 0
+  fi
+
+  if ! aqua install -a; then
+    printf 'warn  aqua install -a failed; continuing because lazy install can retry later\n' >&2
+  fi
+
+  prepend_aqua_bin_to_path
 }
 
 persist_bash_handoff_block() {
@@ -412,6 +456,7 @@ fi
 if [[ $SKIP_CONFIGS -eq 0 ]]; then
   stage_assets
   sync_app_configs
+  initialize_aqua_packages
   initialize_nushell_autoload
   sync_nvim_config
 fi
