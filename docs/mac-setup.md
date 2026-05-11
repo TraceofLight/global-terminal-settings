@@ -94,7 +94,7 @@ GUI-launched processes on macOS (JetBrains IDEs, Raycast, and other applications
 
 After the aqua config is copied, the installer runs `aqua install -a` when `aqua` is available. If that command fails, the installer warns and continues because aqua lazy install can retry in a later shell session.
 
-The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. These binaries are provided by aqua. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. `env.nu` sets `AQUA_GLOBAL_CONFIG` when the managed aqua config exists and prepends aqua's root `bin` directory when present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall.
+The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. These binaries are provided by aqua. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. `env.nu` sets `AQUA_GLOBAL_CONFIG` to the managed config only when the variable is not already set, and prepends aqua's root `bin` directory when present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall.
 
 `fzf` and the other daily CLIs are expected to resolve through aqua.
 

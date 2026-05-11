@@ -46,20 +46,19 @@ The installer auto-detects WSL via `$WSL_DISTRO_NAME` and the `microsoft` marker
 
 ### 1. Package Manager Readiness
 
-The installer first installs the minimum apt dependencies that Linuxbrew requires (`build-essential`, `curl`, `file`, `git`, `procps`) and then bootstraps Linuxbrew at `/home/linuxbrew/.linuxbrew`. Bootstrap binaries are resolved through Linuxbrew's `bin` directories, which the shared `env.nu` adds to `$env.PATH` for NuShell sessions. Daily cross-platform CLIs are managed by aqua after bootstrap.
+The installer first installs the minimum apt dependencies that Linuxbrew and the WezTerm APT repository require (`build-essential`, `ca-certificates`, `curl`, `file`, `git`, `gpg`, `procps`) and then bootstraps Linuxbrew at `/home/linuxbrew/.linuxbrew`. Bootstrap binaries are resolved through Linuxbrew's `bin` directories, which the shared `env.nu` adds to `$env.PATH` for NuShell sessions. Daily cross-platform CLIs are managed by aqua after bootstrap.
 
 ### 2. Core Packages
 
 The package baseline is defined in [linux/Brewfile](../linux/Brewfile).
 
-Key packages:
+Linuxbrew bootstrap packages:
 
-- `WezTerm` (native Linux only; filtered out in WSL mode)
 - `NuShell`
 - `git`
 - `aqua`
 
-Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available.
+Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available. Native Ubuntu Linux installs WezTerm separately from WezTerm's official APT repository rather than Linuxbrew, because the Linuxbrew tap can install an x86-64 WezTerm binary on ARM64 hosts. WSL skips WezTerm because the Windows host owns the terminal UI.
 
 ### 3. Stage Managed Assets
 
@@ -102,7 +101,7 @@ NuShell configuration files are placed in `~/.config/nushell`. The managed NuShe
 
 After the aqua config is copied, the installer runs `aqua install -a` when `aqua` is available. If that command fails, the installer warns and continues because aqua lazy install can retry in a later shell session.
 
-The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into `~/.config/nushell/autoload/`, and `config.nu` sources them when they are present. These binaries are provided by aqua. `env.nu` sets `AQUA_GLOBAL_CONFIG` when the managed aqua config exists and prepends aqua's root `bin` directory when present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall.
+The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into `~/.config/nushell/autoload/`, and `config.nu` sources them when they are present. These binaries are provided by aqua. `env.nu` sets `AQUA_GLOBAL_CONFIG` to the managed config only when the variable is not already set, and prepends aqua's root `bin` directory when present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall.
 
 `fzf` and the other daily CLIs are expected to resolve through aqua.
 
@@ -157,14 +156,14 @@ This is fully reversible — `wsl --set-default docker-desktop` restores the pre
 
 ### Interactive bash handoff to nu
 
-`wsl` (no command) enters the distribution's default login shell, which on Ubuntu is bash. Without shell setup, bash has no knowledge of Linuxbrew, so `nvim`, `nu`, `starship`, and similar commands resolve to "not found". The WSL stage of `linux/install.sh` therefore appends an idempotent managed block to `~/.bashrc`:
+Interactive SSH sessions and `wsl` with no command enter the distribution's default login shell, which on Ubuntu is usually bash but may be zsh on existing machines. Without shell setup, the login shell has no knowledge of Linuxbrew, so `nvim`, `nu`, `starship`, and similar commands resolve to "not found". The Linux installer therefore appends an idempotent managed block to `~/.bashrc` for both native Linux and WSL, and also to `~/.zshrc` when the user's login shell is zsh:
 
 - `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` so `/home/linuxbrew/.linuxbrew/bin` joins `$PATH`
-- `exec nu -l` when the shell is interactive, the user has not opted out with `TERMINAL_BOOTSTRAP_NO_HANDOFF=1`, the recursion guard `TERMINAL_BOOTSTRAP_NU_HANDOFF` is unset, and `nu` is available
+- `exec nu -l` when bash or zsh is interactive, the user has not opted out with `TERMINAL_BOOTSTRAP_NO_HANDOFF=1`, the recursion guard `TERMINAL_BOOTSTRAP_NU_HANDOFF` is unset, and `nu` is available
 
-The combined effect: `wsl` from Windows opens bash briefly, which then re-execs into a login nu session. The handoff runs only for interactive shells, so non-interactive invocations (scripts, `wsl -- <cmd>`, VS Code Remote WSL server commands) are unaffected. To disable the handoff for a session, export `TERMINAL_BOOTSTRAP_NO_HANDOFF=1` before launching wsl.
+The combined effect: SSH and `wsl` from Windows open bash briefly, which then re-execs into a login nu session. The handoff runs only for interactive shells, so non-interactive invocations (scripts, `ssh host command`, `wsl -- <cmd>`, VS Code Remote WSL server commands) are unaffected. To disable the handoff for a session, export `TERMINAL_BOOTSTRAP_NO_HANDOFF=1` before launching the interactive shell.
 
-The block is bounded by `# BEGIN managed by terminal-bootstrap` / `# END managed by terminal-bootstrap` markers. The installer's idempotency check looks for the BEGIN marker and skips re-append if present. To remove the handoff permanently, delete the managed block from `~/.bashrc`.
+The block is bounded by `# BEGIN managed by terminal-bootstrap` / `# END managed by terminal-bootstrap` markers. The installer's idempotency check looks for the BEGIN marker and skips re-append if present. To remove the handoff permanently, delete the managed block from `~/.bashrc` and, if present, `~/.zshrc`.
 
 ## Sync Policy
 

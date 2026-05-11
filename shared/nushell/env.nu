@@ -65,7 +65,7 @@ let aqua_global_config = if ($aqua_config_home | is-not-empty) {
   null
 }
 
-if (($aqua_global_config | is-not-empty) and ($aqua_global_config | path exists)) {
+if (($env.AQUA_GLOBAL_CONFIG? | default "" | is-empty) and ($aqua_global_config | is-not-empty) and ($aqua_global_config | path exists)) {
   $env.AQUA_GLOBAL_CONFIG = $aqua_global_config
 }
 

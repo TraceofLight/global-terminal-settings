@@ -169,7 +169,7 @@ ensure_apt_dependencies() {
     return 0
   fi
 
-  local apt_packages=(build-essential curl file git procps)
+  local apt_packages=(build-essential ca-certificates curl file git gpg procps)
   local missing=()
   for pkg in "${apt_packages[@]}"; do
     if ! dpkg -s "$pkg" >/dev/null 2>&1; then
@@ -214,15 +214,48 @@ install_packages() {
 
   local brewfile="$BOOTSTRAP_ROOT/linux/Brewfile"
 
-  if [[ "$TARGET" == "wsl" ]]; then
-    local filtered
-    filtered="$(mktemp)"
-    trap 'rm -f "$filtered"' RETURN
-    grep -vE '^(brew "wezterm"|tap "wezterm/wezterm")$' "$brewfile" > "$filtered"
-    run_cmd "brew bundle --file $filtered (wezterm filtered)" brew bundle --file "$filtered"
-  else
-    run_cmd "brew bundle --file $brewfile" brew bundle --file "$brewfile"
+  if [[ "$TARGET" == "linux" ]]; then
+    install_wezterm_from_apt
   fi
+
+  run_cmd "brew bundle --file $brewfile" brew bundle --file "$brewfile"
+}
+
+remove_linuxbrew_wezterm() {
+  command -v brew >/dev/null 2>&1 || return 0
+
+  local formulas=(
+    "wezterm/wezterm-linuxbrew/wezterm"
+    "wezterm"
+  )
+  for formula in "${formulas[@]}"; do
+    if brew list --formula "$formula" >/dev/null 2>&1; then
+      run_cmd "Remove Linuxbrew WezTerm formula $formula" brew uninstall --formula "$formula"
+    fi
+  done
+}
+
+install_wezterm_from_apt() {
+  if ! command -v apt-get >/dev/null 2>&1; then
+    printf 'warn  apt-get not found; skipping native Linux WezTerm install\n' >&2
+    return 0
+  fi
+
+  remove_linuxbrew_wezterm
+
+  if command -v wezterm >/dev/null 2>&1 && wezterm --version >/dev/null 2>&1; then
+    printf 'skip  WezTerm already installed\n'
+    return 0
+  fi
+
+  local keyring="/usr/share/keyrings/wezterm-fury.gpg"
+  local source_list="/etc/apt/sources.list.d/wezterm.list"
+  local source_line="deb [signed-by=$keyring] https://apt.fury.io/wez/ * *"
+
+  run_cmd "Install WezTerm APT signing key" bash -c "curl -fsSL https://apt.fury.io/wez/gpg.key | sudo gpg --yes --dearmor -o '$keyring'"
+  run_cmd "Configure WezTerm APT source" bash -c "printf '%s\n' '$source_line' | sudo tee '$source_list' >/dev/null && sudo chmod 644 '$keyring' '$source_list'"
+  run_cmd "apt-get update for WezTerm" sudo apt-get update
+  run_cmd "apt-get install wezterm" sudo apt-get install -y wezterm
 }
 
 stage_assets() {
@@ -261,9 +294,7 @@ sync_app_configs() {
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/openclaude-integration.nu" "$nushell_root/autoload/openclaude-integration.nu"
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/claude-integration.nu" "$nushell_root/autoload/claude-integration.nu"
 
-  if [[ "$TARGET" == "wsl" ]]; then
-    persist_bash_handoff_block
-  fi
+  persist_shell_handoff_blocks
 
   NVIM_TARGET="$CONFIG_ROOT/nvim"
 }
@@ -344,6 +375,67 @@ fi
 BASHRC_EOF
 
   printf 'ok    Added terminal-bootstrap handoff block to %s\n' "$bashrc"
+}
+
+uses_zsh_shell() {
+  local login_shell=""
+  if command -v getent >/dev/null 2>&1; then
+    login_shell="$(getent passwd "$(id -un)" | cut -d: -f7 || true)"
+  fi
+
+  local shell_path
+  for shell_path in "${SHELL:-}" "$login_shell"; do
+    [[ -n "$shell_path" ]] || continue
+    if [[ "$(basename "$shell_path")" == "zsh" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+persist_zsh_handoff_block() {
+  local zshrc="$HOME/.zshrc"
+  local begin_marker="# BEGIN managed by terminal-bootstrap"
+
+  if [[ -f "$zshrc" ]] && grep -qF "$begin_marker" "$zshrc"; then
+    printf 'skip  %s already has terminal-bootstrap handoff block\n' "$zshrc"
+    return 0
+  fi
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Append terminal-bootstrap handoff block to %s\n' "$zshrc"
+    return 0
+  fi
+
+  [[ -f "$zshrc" ]] || touch "$zshrc"
+
+  cat >> "$zshrc" <<'ZSHRC_EOF'
+
+# BEGIN managed by terminal-bootstrap
+if [ -d /home/linuxbrew/.linuxbrew ]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+# Hand off interactive zsh sessions to nu so the managed UX
+# (Starship, carapace, vi alias, etc.) takes effect. Skip by setting
+# TERMINAL_BOOTSTRAP_NO_HANDOFF=1, or when the shell is non-interactive.
+if [[ -o interactive ]] && [ -z "${TERMINAL_BOOTSTRAP_NO_HANDOFF:-}" ] && [ -z "${TERMINAL_BOOTSTRAP_NU_HANDOFF:-}" ] && command -v nu >/dev/null 2>&1; then
+  export TERMINAL_BOOTSTRAP_NU_HANDOFF=1
+  exec nu -l
+fi
+# END managed by terminal-bootstrap
+ZSHRC_EOF
+
+  printf 'ok    Added terminal-bootstrap handoff block to %s\n' "$zshrc"
+}
+
+persist_shell_handoff_blocks() {
+  persist_bash_handoff_block
+
+  if uses_zsh_shell; then
+    persist_zsh_handoff_block
+  fi
 }
 
 initialize_nushell_autoload() {

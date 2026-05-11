@@ -1,6 +1,3 @@
-tap "wezterm/wezterm"
-brew "wezterm"
-
 brew "aqua"
 brew "git"
 brew "nushell"
