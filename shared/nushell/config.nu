@@ -20,6 +20,7 @@ const openclaude_integration = ($nu.default-config-dir | path join "autoload" | 
 const claude_autoload = ($nu.default-config-dir | path join "autoload" | path join "claude.nu")
 const claude_integration = ($nu.default-config-dir | path join "autoload" | path join "claude-integration.nu")
 const user_overrides = ($nu.default-config-dir | path join "autoload" | path join "user-overrides.nu")
+const prompt_overrides = ($nu.default-config-dir | path join "autoload" | path join "zz-prompt-overrides.nu")
 
 const maybe_wezterm_integration = if ($wezterm_integration | path exists) { $wezterm_integration } else { null }
 const maybe_carapace_autoload = if ($carapace_autoload | path exists) { $carapace_autoload } else { null }
@@ -30,6 +31,7 @@ const maybe_openclaude_integration = if ($openclaude_integration | path exists) 
 const maybe_claude_autoload = if ($claude_autoload | path exists) { $claude_autoload } else { null }
 const maybe_claude_integration = if ($claude_integration | path exists) { $claude_integration } else { null }
 const maybe_user_overrides = if ($user_overrides | path exists) { $user_overrides } else { null }
+const maybe_prompt_overrides = if ($prompt_overrides | path exists) { $prompt_overrides } else { null }
 
 source $maybe_wezterm_integration
 source $maybe_carapace_autoload
@@ -40,6 +42,7 @@ source $maybe_openclaude_integration
 source $maybe_claude_autoload
 source $maybe_claude_integration
 source $maybe_user_overrides
+source $maybe_prompt_overrides
 
 # Starship does not fully override Nu's vi-mode prompt indicators.
 # Keep prompt rendering to a single left-prompt path in WezTerm.

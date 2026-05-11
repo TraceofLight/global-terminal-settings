@@ -193,6 +193,16 @@ function Copy-ManagedFile {
     )
 
     $sourcePath = Get-CanonicalPath $Source
+    if (-not (Test-Path -LiteralPath $sourcePath) -and $DryRun) {
+        $installRootPath = (Get-CanonicalPath $script:InstallRoot).TrimEnd('\')
+        if ($sourcePath.StartsWith($installRootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $relative = $sourcePath.Substring($installRootPath.Length).TrimStart('\')
+            $fallback = Join-Path $script:SourceRoot $relative
+            if (Test-Path -LiteralPath $fallback) {
+                $sourcePath = Get-CanonicalPath $fallback
+            }
+        }
+    }
     Ensure-Directory (Split-Path -Parent $Target)
 
     if (Test-Path -LiteralPath $Target) {
@@ -527,6 +537,107 @@ function Initialize-AquaPackages {
     Add-AquaBinToPath
 }
 
+function ConvertTo-NuStringLiteral {
+    param([string]$Value)
+
+    return '"' + $Value.Replace('\', '\\').Replace('"', '\"') + '"'
+}
+
+function Resolve-StarshipCommand {
+    if (Get-Command aqua -ErrorAction SilentlyContinue) {
+        try {
+            $candidate = (& aqua which starship 2>$null | Select-Object -First 1)
+            if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate)) {
+                return $candidate.Trim()
+            }
+        } catch {
+            # Fall back to PATH resolution below.
+        }
+    }
+
+    $starship = Get-Command starship -ErrorAction SilentlyContinue
+    if ($starship) {
+        return $starship.Source
+    }
+
+    return $null
+}
+
+function New-StarshipAutoloadContent {
+    param([string]$StarshipCommand)
+
+    $starshipCommandLiteral = ConvertTo-NuStringLiteral $StarshipCommand
+    $template = @'
+# managed by terminal-bootstrap
+# terminal-bootstrap safe starship prompt
+export-env {
+  let starship_command = __STARSHIP_COMMAND__
+
+  let run_starship_prompt = {|args|
+    let result = try {
+      run-external $starship_command "prompt" ...$args | complete
+    } catch {
+      { stdout: "", stderr: "", exit_code: 1 }
+    }
+
+    if $result.exit_code == 0 {
+      $result.stdout
+    } else {
+      ""
+    }
+  }
+
+  $env.STARSHIP_SHELL = "nu"
+  $env.STARSHIP_SESSION_KEY = (random chars -l 16)
+  $env.PROMPT_MULTILINE_INDICATOR = ""
+  $env.PROMPT_INDICATOR = ""
+  $env.PROMPT_INDICATOR_VI_INSERT = ""
+  $env.PROMPT_INDICATOR_VI_NORMAL = ""
+  $env.PROMPT_COMMAND_RIGHT = {|| "" }
+  $env.config = (
+    $env.config?
+    | default {}
+    | merge {
+        render_right_prompt_on_last_line: false
+      }
+  )
+
+  $env.PROMPT_COMMAND = {||
+    let cmd_duration_ms = ($env.CMD_DURATION_MS? | default "0")
+    let cmd_duration = if $cmd_duration_ms == "0823" { 0 } else { $cmd_duration_ms }
+    let terminal_width = try { (term size).columns } catch { 80 }
+    let job_args = if (which "job list" | where type == built-in | is-not-empty) {
+      ["--jobs", (job list | length)]
+    } else {
+      []
+    }
+
+    do $run_starship_prompt [
+      "--cmd-duration"
+      $cmd_duration
+      $"--status=($env.LAST_EXIT_CODE)"
+      "--terminal-width"
+      $terminal_width
+      ...$job_args
+    ]
+  }
+}
+'@
+
+    return $template.Replace('__STARSHIP_COMMAND__', $starshipCommandLiteral)
+}
+
+function Write-StarshipAutoload {
+    param([string]$Target)
+
+    $starshipCommand = Resolve-StarshipCommand
+    if ([string]::IsNullOrWhiteSpace($starshipCommand)) {
+        throw 'starship command not found.'
+    }
+
+    Set-Content -LiteralPath $Target -Value (New-StarshipAutoloadContent -StarshipCommand $starshipCommand)
+}
+
 function Initialize-NuAutoload {
     Write-Stage 6 'Starship, zoxide, fzf, carapace, claude, openclaude'
 
@@ -551,7 +662,7 @@ function Initialize-NuAutoload {
 
     if (Get-Command starship -ErrorAction SilentlyContinue) {
         Invoke-Action "Generate NuShell Starship autoload" {
-            & starship init nu | Set-Content -LiteralPath $starshipTarget
+            Write-StarshipAutoload -Target $starshipTarget
         }
     } else {
         Write-Warning 'starship command not found. Writing no-op NuShell Starship autoload.'
@@ -624,6 +735,7 @@ function Sync-AppConfigs {
     Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\autoload\wezterm-integration.nu') -Target (Join-Path $autoloadTargetRoot 'wezterm-integration.nu')
     Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\autoload\openclaude-integration.nu') -Target (Join-Path $autoloadTargetRoot 'openclaude-integration.nu')
     Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\autoload\claude-integration.nu') -Target (Join-Path $autoloadTargetRoot 'claude-integration.nu')
+    Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'nushell\autoload\zz-prompt-overrides.nu') -Target (Join-Path $autoloadTargetRoot 'zz-prompt-overrides.nu')
 
     $script:NvimTarget = $nvimTarget
 }

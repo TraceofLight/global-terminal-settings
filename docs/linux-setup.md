@@ -96,12 +96,13 @@ NuShell configuration files are placed in `~/.config/nushell`. The managed NuShe
 - `autoload/wezterm-integration.nu`
 - `autoload/claude-integration.nu`
 - `autoload/openclaude-integration.nu`
+- `autoload/zz-prompt-overrides.nu`
 
 ### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
 
 After the aqua config is copied, the installer runs `aqua install -a` when `aqua` is available. If that command fails, the installer warns and continues because aqua lazy install can retry in a later shell session.
 
-The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into `~/.config/nushell/autoload/`, and `config.nu` sources them when they are present. These binaries are provided by aqua. `env.nu` sets `AQUA_GLOBAL_CONFIG` to the managed config only when the variable is not already set, and prepends aqua's root `bin` directory when present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall.
+The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into `~/.config/nushell/autoload/`, and `config.nu` sources them when they are present. These binaries are provided by aqua. The generated `starship.nu` resolves the real Starship executable with `aqua which starship` when possible, disables the NuShell right-prompt path, and catches Starship prompt-render failures so an interrupted foreground command cannot surface as a prompt hook error. `autoload/zz-prompt-overrides.nu` is staged as a managed late-load guard; the `zz-` prefix intentionally keeps it after normal generated autoload files in alphabetical load order. `env.nu` sets `AQUA_GLOBAL_CONFIG` to the managed config only when the variable is not already set, and prepends aqua's root `bin` directory when present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall.
 
 `fzf` and the other daily CLIs are expected to resolve through aqua.
 

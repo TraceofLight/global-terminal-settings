@@ -222,6 +222,7 @@ sync_app_configs() {
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/wezterm-integration.nu" "$nushell_root/autoload/wezterm-integration.nu"
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/openclaude-integration.nu" "$nushell_root/autoload/openclaude-integration.nu"
   copy_managed_file "$INSTALL_ROOT/nushell/autoload/claude-integration.nu" "$nushell_root/autoload/claude-integration.nu"
+  copy_managed_file "$INSTALL_ROOT/nushell/autoload/zz-prompt-overrides.nu" "$nushell_root/autoload/zz-prompt-overrides.nu"
 
   link_macos_nushell_fallback
 
@@ -270,6 +271,94 @@ initialize_aqua_packages() {
   prepend_aqua_bin_to_path
 }
 
+nu_string_literal() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  printf '"%s"' "$value"
+}
+
+resolve_starship_command() {
+  if command -v aqua >/dev/null 2>&1; then
+    local candidate
+    candidate="$(aqua which starship 2>/dev/null | head -n 1 || true)"
+    if [[ -n "$candidate" && -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  fi
+
+  command -v starship
+}
+
+write_starship_autoload() {
+  local target="$1"
+  local starship_command="$2"
+  local starship_literal
+  starship_literal="$(nu_string_literal "$starship_command")"
+
+  {
+    cat <<'NU_HEAD'
+# managed by terminal-bootstrap
+# terminal-bootstrap safe starship prompt
+export-env {
+NU_HEAD
+    printf '  let starship_command = %s\n' "$starship_literal"
+    cat <<'NU_TAIL'
+
+  let run_starship_prompt = {|args|
+    let result = try {
+      run-external $starship_command "prompt" ...$args | complete
+    } catch {
+      { stdout: "", stderr: "", exit_code: 1 }
+    }
+
+    if $result.exit_code == 0 {
+      $result.stdout
+    } else {
+      ""
+    }
+  }
+
+  $env.STARSHIP_SHELL = "nu"
+  $env.STARSHIP_SESSION_KEY = (random chars -l 16)
+  $env.PROMPT_MULTILINE_INDICATOR = ""
+  $env.PROMPT_INDICATOR = ""
+  $env.PROMPT_INDICATOR_VI_INSERT = ""
+  $env.PROMPT_INDICATOR_VI_NORMAL = ""
+  $env.PROMPT_COMMAND_RIGHT = {|| "" }
+  $env.config = (
+    $env.config?
+    | default {}
+    | merge {
+        render_right_prompt_on_last_line: false
+      }
+  )
+
+  $env.PROMPT_COMMAND = {||
+    let cmd_duration_ms = ($env.CMD_DURATION_MS? | default "0")
+    let cmd_duration = if $cmd_duration_ms == "0823" { 0 } else { $cmd_duration_ms }
+    let terminal_width = try { (term size).columns } catch { 80 }
+    let job_args = if (which "job list" | where type == built-in | is-not-empty) {
+      ["--jobs", (job list | length)]
+    } else {
+      []
+    }
+
+    do $run_starship_prompt [
+      "--cmd-duration"
+      $cmd_duration
+      $"--status=($env.LAST_EXIT_CODE)"
+      "--terminal-width"
+      $terminal_width
+      ...$job_args
+    ]
+  }
+}
+NU_TAIL
+  } > "$target"
+}
+
 initialize_nushell_autoload() {
   log_stage 6 "Starship, zoxide, fzf, carapace, claude, openclaude"
   local nushell_root
@@ -298,7 +387,7 @@ initialize_nushell_autoload() {
     if [[ $DRY_RUN -eq 1 ]]; then
       printf '[dry-run] Generate NuShell Starship autoload\n'
     else
-      starship init nu > "$autoload_root/starship.nu"
+      write_starship_autoload "$autoload_root/starship.nu" "$(resolve_starship_command)"
     fi
   else
     printf 'warn  starship command not found; writing no-op NuShell Starship autoload\n' >&2

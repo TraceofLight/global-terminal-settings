@@ -17,6 +17,7 @@ cp "$REPO_ROOT/shared/nushell/login.nu" "$INSTALL_ROOT/nushell/login.nu"
 cp "$REPO_ROOT/shared/nushell/autoload/wezterm-integration.nu" "$INSTALL_ROOT/nushell/autoload/wezterm-integration.nu"
 cp "$REPO_ROOT/shared/nushell/autoload/openclaude-integration.nu" "$INSTALL_ROOT/nushell/autoload/openclaude-integration.nu"
 cp "$REPO_ROOT/shared/nushell/autoload/claude-integration.nu" "$INSTALL_ROOT/nushell/autoload/claude-integration.nu"
+cp "$REPO_ROOT/shared/nushell/autoload/zz-prompt-overrides.nu" "$INSTALL_ROOT/nushell/autoload/zz-prompt-overrides.nu"
 cp "$REPO_ROOT/shared/aqua/aqua.yaml" "$INSTALL_ROOT/aqua/aqua.yaml"
 
 copy_managed_file() {
@@ -38,6 +39,7 @@ copy_managed_file "$INSTALL_ROOT/nushell/login.nu" "$NUSHELL_ROOT/login.nu"
 copy_managed_file "$INSTALL_ROOT/nushell/autoload/wezterm-integration.nu" "$AUTOLOAD_ROOT/wezterm-integration.nu"
 copy_managed_file "$INSTALL_ROOT/nushell/autoload/openclaude-integration.nu" "$AUTOLOAD_ROOT/openclaude-integration.nu"
 copy_managed_file "$INSTALL_ROOT/nushell/autoload/claude-integration.nu" "$AUTOLOAD_ROOT/claude-integration.nu"
+copy_managed_file "$INSTALL_ROOT/nushell/autoload/zz-prompt-overrides.nu" "$AUTOLOAD_ROOT/zz-prompt-overrides.nu"
 copy_managed_file "$INSTALL_ROOT/aqua/aqua.yaml" "$AQUA_ROOT/aqua.yaml"
 
 for path in \
@@ -47,6 +49,7 @@ for path in \
   "$AUTOLOAD_ROOT/wezterm-integration.nu" \
   "$AUTOLOAD_ROOT/openclaude-integration.nu" \
   "$AUTOLOAD_ROOT/claude-integration.nu" \
+  "$AUTOLOAD_ROOT/zz-prompt-overrides.nu" \
   "$AQUA_ROOT/aqua.yaml"
 do
   [[ -f "$path" ]]
@@ -59,4 +62,5 @@ cmp "$INSTALL_ROOT/nushell/login.nu" "$NUSHELL_ROOT/login.nu"
 cmp "$INSTALL_ROOT/nushell/autoload/wezterm-integration.nu" "$AUTOLOAD_ROOT/wezterm-integration.nu"
 cmp "$INSTALL_ROOT/nushell/autoload/openclaude-integration.nu" "$AUTOLOAD_ROOT/openclaude-integration.nu"
 cmp "$INSTALL_ROOT/nushell/autoload/claude-integration.nu" "$AUTOLOAD_ROOT/claude-integration.nu"
+cmp "$INSTALL_ROOT/nushell/autoload/zz-prompt-overrides.nu" "$AUTOLOAD_ROOT/zz-prompt-overrides.nu"
 cmp "$INSTALL_ROOT/aqua/aqua.yaml" "$AQUA_ROOT/aqua.yaml"

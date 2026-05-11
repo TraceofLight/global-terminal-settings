@@ -87,6 +87,7 @@ NuShell configuration files are placed in `~/.config/nushell` by default. If `XD
 - `autoload/wezterm-integration.nu`
 - `autoload/claude-integration.nu`
 - `autoload/openclaude-integration.nu`
+- `autoload/zz-prompt-overrides.nu`
 
 GUI-launched processes on macOS (JetBrains IDEs, Raycast, and other applications launched outside WezTerm) do not inherit the `XDG_CONFIG_HOME=~/.config` that the WezTerm entrypoint sets, so NuShell falls back to `~/Library/Application Support/nushell` and reads a separate snapshot. To keep every GUI-launched NuShell session aligned with the managed configuration, the installer links `~/Library/Application Support/nushell` to the resolved NuShell config directory. An existing directory at the fallback path is moved to `<target>.pre-terminal-bootstrap` before the link is created, consistent with the rest of the sync policy.
 
@@ -94,7 +95,7 @@ GUI-launched processes on macOS (JetBrains IDEs, Raycast, and other applications
 
 After the aqua config is copied, the installer runs `aqua install -a` when `aqua` is available. If that command fails, the installer warns and continues because aqua lazy install can retry in a later shell session.
 
-The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. These binaries are provided by aqua. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. `env.nu` sets `AQUA_GLOBAL_CONFIG` to the managed config only when the variable is not already set, and prepends aqua's root `bin` directory when present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall.
+The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. These binaries are provided by aqua. The generated `starship.nu` resolves the real Starship executable with `aqua which starship` when possible, disables the NuShell right-prompt path, and catches Starship prompt-render failures so an interrupted foreground command cannot surface as a prompt hook error. `autoload/zz-prompt-overrides.nu` is staged as a managed late-load guard; the `zz-` prefix intentionally keeps it after normal generated autoload files in alphabetical load order. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. `env.nu` sets `AQUA_GLOBAL_CONFIG` to the managed config only when the variable is not already set, and prepends aqua's root `bin` directory when present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall.
 
 `fzf` and the other daily CLIs are expected to resolve through aqua.
 
