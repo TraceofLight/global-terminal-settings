@@ -1,0 +1,8 @@
+# managed by terminal-bootstrap
+# Shared language runtime baseline.
+# Installed at ~/.config/mise/config.toml on POSIX
+# and %USERPROFILE%\.config\mise\config.toml on Windows.
+
+[tools]
+java = "temurin-17.0.18+8"
+python = "3.12.13"

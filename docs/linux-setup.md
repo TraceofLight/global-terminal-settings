@@ -57,8 +57,9 @@ Linuxbrew bootstrap packages:
 - `NuShell`
 - `git`
 - `aqua`
+- `mise`
 
-Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available. Native Ubuntu Linux installs WezTerm separately from WezTerm's official APT repository rather than Linuxbrew, because the Linuxbrew tap can install an x86-64 WezTerm binary on ARM64 hosts. WSL skips WezTerm because the Windows host owns the terminal UI.
+Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available. Cross-platform language runtimes (Java, Python) are declared in [shared/mise/config.toml](../shared/mise/config.toml) and installed by mise after the aqua step. Native Ubuntu Linux installs WezTerm separately from WezTerm's official APT repository rather than Linuxbrew, because the Linuxbrew tap can install an x86-64 WezTerm binary on ARM64 hosts. WSL skips WezTerm because the Windows host owns the terminal UI.
 
 ### 3. Stage Managed Assets
 
@@ -68,6 +69,7 @@ Native Linux stages:
 
 - `fonts/`
 - `aqua/`
+- `mise/`
 - `nushell/`
 - `starship/`
 - `wezterm/`
@@ -77,14 +79,15 @@ WSL stages:
 
 - `nushell/`
 - `aqua/`
+- `mise/`
 - `starship/`
 - `nvim/`
 
 ### 4. Wire WezTerm
 
-Native Linux: `shared/wezterm/wezterm.lua` is copied to `~/.wezterm.lua`, `shared/starship/starship.toml` is copied to `~/.config/starship.toml`, and `shared/aqua/aqua.yaml` is copied to `~/.config/aquaproj-aqua/aqua.yaml`.
+Native Linux: `shared/wezterm/wezterm.lua` is copied to `~/.wezterm.lua`, `shared/starship/starship.toml` is copied to `~/.config/starship.toml`, `shared/aqua/aqua.yaml` is copied to `~/.config/aquaproj-aqua/aqua.yaml`, and `shared/mise/config.toml` is copied to `~/.config/mise/config.toml`.
 
-WSL: `shared/starship/starship.toml` and `shared/aqua/aqua.yaml` are copied. The Windows-side installer manages `wezterm.lua` and registers the WSL Ubuntu domain. See the WSL Notes section below.
+WSL: `shared/starship/starship.toml`, `shared/aqua/aqua.yaml`, and `shared/mise/config.toml` are copied. The Windows-side installer manages `wezterm.lua` and registers the WSL Ubuntu domain. See the WSL Notes section below.
 
 ### 5. Wire NuShell
 
@@ -98,9 +101,11 @@ NuShell configuration files are placed in `~/.config/nushell`. The managed NuShe
 - `autoload/openclaude-integration.nu`
 - `autoload/zz-prompt-overrides.nu`
 
-### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
+### 6. Wire Starship, zoxide, fzf, carapace, mise, and optional claude / openclaude integration
 
 After the aqua config is copied, the installer runs `aqua install -a` when `aqua` is available. If that command fails, the installer warns and continues because aqua lazy install can retry in a later shell session.
+
+After the mise config is copied, the installer runs `mise install -y` when `mise` is available so the runtimes pinned in `shared/mise/config.toml` (Java, Python) are present after bootstrap. If the mise binary is missing or the command fails, the installer warns and continues; the runtimes can be installed later with `mise install`.
 
 The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into `~/.config/nushell/autoload/`, and `config.nu` sources them when they are present. These binaries are provided by aqua. The generated `starship.nu` resolves the real Starship executable with `aqua which starship` when possible, disables the NuShell right-prompt path, and catches Starship prompt-render failures so an interrupted foreground command cannot surface as a prompt hook error. `autoload/zz-prompt-overrides.nu` is staged as a managed late-load guard; the `zz-` prefix intentionally keeps it after normal generated autoload files in alphabetical load order. `env.nu` sets `AQUA_GLOBAL_CONFIG` to the managed config only when the variable is not already set, and prepends aqua's root `bin` directory when present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall.
 
@@ -155,9 +160,9 @@ wsl --set-default Ubuntu
 
 This is fully reversible — `wsl --set-default docker-desktop` restores the previous default. Docker Desktop continues to work either way because it targets its own distro by name internally.
 
-### Interactive bash handoff to nu
+## Interactive bash / zsh handoff to nu
 
-Interactive SSH sessions and `wsl` with no command enter the distribution's default login shell, which on Ubuntu is usually bash but may be zsh on existing machines. Without shell setup, the login shell has no knowledge of Linuxbrew, so `nvim`, `nu`, `starship`, and similar commands resolve to "not found". The Linux installer therefore appends an idempotent managed block to `~/.bashrc` for both native Linux and WSL, and also to `~/.zshrc` when the user's login shell is zsh:
+This applies to both native Linux and WSL. Interactive SSH sessions and `wsl` with no command enter the distribution's default login shell, which on Ubuntu is usually bash but may be zsh on existing machines. Without shell setup, the login shell has no knowledge of Linuxbrew, so `nvim`, `nu`, `starship`, and similar commands resolve to "not found". The Linux installer therefore appends an idempotent managed block to `~/.bashrc` for both native Linux and WSL, and also to `~/.zshrc` when the user's login shell is zsh:
 
 - `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` so `/home/linuxbrew/.linuxbrew/bin` joins `$PATH`
 - `exec nu -l` when bash or zsh is interactive, the user has not opted out with `TERMINAL_BOOTSTRAP_NO_HANDOFF=1`, the recursion guard `TERMINAL_BOOTSTRAP_NU_HANDOFF` is unset, and `nu` is available
@@ -189,8 +194,8 @@ Why link modes still exist:
 
 - Fonts are loaded through WezTerm `font_dirs` in the native Linux install, not installed system-wide
 - On WSL, fonts live on the Windows side and are not deployed to the WSL filesystem
-- Linuxbrew is used only as the installer-time source for bootstrap tools; daily cross-platform CLIs are managed by aqua
-- Language runtimes, including Java, remain out of scope for this repository's baseline and should live in `autoload/user-overrides.nu`, a user aqua config, or project-local configuration
+- Linuxbrew is used only as the installer-time source for bootstrap tools; daily cross-platform CLIs are managed by aqua, and cross-platform language runtimes are managed by mise
+- The shared language runtime baseline (Java, Python) lives in `shared/mise/config.toml` and is staged into `~/.config/mise/config.toml`; extend it by adding entries there, then rerun the installer or `mise install`
 - On native Linux, WezTerm launches `nu` by name from the user's PATH; Linuxbrew's `/home/linuxbrew/.linuxbrew/bin` entry added by `brew shellenv` (typically sourced from `~/.profile` or `~/.bashrc`) is what makes that resolution work. If WezTerm cannot find `nu`, verify that `command -v nu` succeeds in a login shell before launching WezTerm.
 - The current `shared/wezterm/wezterm.lua` probes `/opt/homebrew/bin/nu` and `/usr/local/bin/nu` before falling back to `nu` by name. Those macOS-style paths are harmless on Linux; they simply never match and the PATH lookup wins.
 - Unlike the macOS branch, the Linux path does not inject `XDG_CONFIG_HOME` from WezTerm because Linux already treats `~/.config` as the default XDG config root, so NuShell resolves its managed config directly.

@@ -449,6 +449,7 @@ function Stage-Assets {
 
     Sync-Target -Source (Join-Path $script:SourceRoot 'aqua') -Target (Join-Path $script:InstallRoot 'aqua')
     Sync-Target -Source (Join-Path $script:SourceRoot 'fonts') -Target (Join-Path $script:InstallRoot 'fonts')
+    Sync-Target -Source (Join-Path $script:SourceRoot 'mise') -Target (Join-Path $script:InstallRoot 'mise')
     Sync-Target -Source (Join-Path $script:SourceRoot 'nushell') -Target (Join-Path $script:InstallRoot 'nushell')
     Sync-Target -Source (Join-Path $script:SourceRoot 'starship') -Target (Join-Path $script:InstallRoot 'starship')
     Sync-Target -Source (Join-Path $script:SourceRoot 'wezterm') -Target (Join-Path $script:InstallRoot 'wezterm')
@@ -504,6 +505,30 @@ function Add-AquaBinToPath {
     }
 
     $env:Path = (($aquaBin, $env:Path) -join ';')
+}
+
+function Initialize-MiseRuntimes {
+    $miseConfig = Join-Path $HOME '.config\mise\config.toml'
+
+    if ($DryRun) {
+        Write-Host "[dry-run] Install mise runtimes from $miseConfig"
+        return
+    }
+
+    if (-not (Get-Command mise -ErrorAction SilentlyContinue)) {
+        Write-Warning 'mise command not found. Skipping language runtime install.'
+        return
+    }
+
+    Write-Host ">> Install mise runtimes from $miseConfig"
+    try {
+        & mise install -y
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "mise install exited with code $LASTEXITCODE. Rerun manually after resolving the error."
+        }
+    } catch {
+        Write-Warning "mise install failed. Rerun manually after resolving the error. $_"
+    }
 }
 
 function Initialize-AquaPackages {
@@ -603,8 +628,7 @@ export-env {
   )
 
   $env.PROMPT_COMMAND = {||
-    let cmd_duration_ms = ($env.CMD_DURATION_MS? | default "0")
-    let cmd_duration = if $cmd_duration_ms == "0823" { 0 } else { $cmd_duration_ms }
+    let cmd_duration = ($env.CMD_DURATION_MS? | default 0 | into int)
     let terminal_width = try { (term size).columns } catch { 80 }
     let job_args = if (which "job list" | where type == built-in | is-not-empty) {
       ["--jobs", (job list | length)]
@@ -726,6 +750,7 @@ function Sync-AppConfigs {
     Sync-Target -Source (Join-Path $script:InstallRoot 'wezterm\wezterm.lua') -Target (Join-Path $HOME '.wezterm.lua')
     Sync-Target -Source (Join-Path $script:InstallRoot 'starship\starship.toml') -Target $starshipTarget
     Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'aqua\aqua.yaml') -Target (Join-Path $configRoot 'aquaproj-aqua\aqua.yaml')
+    Copy-ManagedFile -Source (Join-Path $script:InstallRoot 'mise\config.toml') -Target (Join-Path $configRoot 'mise\config.toml')
 
     Write-Stage 5 'Wire NuShell'
     Remove-LegacyNuAutoloadArtifacts -AutoloadRoot $autoloadTargetRoot
@@ -791,6 +816,7 @@ if (-not $SkipConfigs) {
     Stage-Assets
     Sync-AppConfigs
     Initialize-AquaPackages
+    Initialize-MiseRuntimes
     Initialize-NuAutoload
     Ensure-NushellCompatibilityLink
     Sync-NvimConfig

@@ -51,9 +51,10 @@ Key packages:
 - `nushell`
 - `git`
 - `aqua`
+- `mise`
 - `font-symbols-only-nerd-font`
 
-Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available.
+Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available. Cross-platform language runtimes (Java, Python) are declared in [shared/mise/config.toml](../shared/mise/config.toml) and installed by mise after the aqua step.
 
 ### 3. Stage Managed Assets
 
@@ -61,6 +62,7 @@ Managed assets are staged into `~/.config/terminal-bootstrap` by default. If `XD
 
 - `fonts/`
 - `aqua/`
+- `mise/`
 - `nushell/`
 - `starship/`
 - `wezterm/`
@@ -74,6 +76,7 @@ The following files are copied into their real locations by default. `--sync-mod
 - `shared/starship/starship.toml` -> `~/.config/starship.toml` by default
 - If `XDG_CONFIG_HOME` is set, `shared/starship/starship.toml` -> `$XDG_CONFIG_HOME/starship.toml`
 - `shared/aqua/aqua.yaml` -> `~/.config/aquaproj-aqua/aqua.yaml` by default, or `$XDG_CONFIG_HOME/aquaproj-aqua/aqua.yaml` when `XDG_CONFIG_HOME` is set
+- `shared/mise/config.toml` -> `~/.config/mise/config.toml` by default, or `$XDG_CONFIG_HOME/mise/config.toml` when `XDG_CONFIG_HOME` is set
 
 `WezTerm` launches `nu -l` as the default shell and sets `XDG_CONFIG_HOME=~/.config` on macOS so NuShell resolves its active config from `~/.config/nushell`.
 
@@ -91,9 +94,11 @@ NuShell configuration files are placed in `~/.config/nushell` by default. If `XD
 
 GUI-launched processes on macOS (JetBrains IDEs, Raycast, and other applications launched outside WezTerm) do not inherit the `XDG_CONFIG_HOME=~/.config` that the WezTerm entrypoint sets, so NuShell falls back to `~/Library/Application Support/nushell` and reads a separate snapshot. To keep every GUI-launched NuShell session aligned with the managed configuration, the installer links `~/Library/Application Support/nushell` to the resolved NuShell config directory. An existing directory at the fallback path is moved to `<target>.pre-terminal-bootstrap` before the link is created, consistent with the rest of the sync policy.
 
-### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
+### 6. Wire Starship, zoxide, fzf, carapace, mise, and optional claude / openclaude integration
 
 After the aqua config is copied, the installer runs `aqua install -a` when `aqua` is available. If that command fails, the installer warns and continues because aqua lazy install can retry in a later shell session.
+
+After the mise config is copied, the installer runs `mise install -y` when `mise` is available so the runtimes pinned in `shared/mise/config.toml` (Java, Python) are present after bootstrap. If the mise binary is missing or the command fails, the installer warns and continues; the runtimes can be installed later with `mise install`.
 
 The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload/`, and `config.nu` sources them when they are present. These binaries are provided by aqua. The generated `starship.nu` resolves the real Starship executable with `aqua which starship` when possible, disables the NuShell right-prompt path, and catches Starship prompt-render failures so an interrupted foreground command cannot surface as a prompt hook error. `autoload/zz-prompt-overrides.nu` is staged as a managed late-load guard; the `zz-` prefix intentionally keeps it after normal generated autoload files in alphabetical load order. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. `env.nu` sets `AQUA_GLOBAL_CONFIG` to the managed config only when the variable is not already set, and prepends aqua's root `bin` directory when present. `config.nu` also optionally sources `autoload/user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall.
 
@@ -114,6 +119,7 @@ Minimum verification:
 - WezTerm opens successfully and starts NuShell
 - The Starship prompt renders correctly
 - `aqua`, `git`, and the aqua-managed `btm`, `carapace`, `zoxide`, `fzf`, `rg`, `fd`, and `nvim` run successfully
+- `mise current` shows the runtimes declared in `shared/mise/config.toml` and `java -version` / `python --version` resolve through the mise shim directory
 - If `claude` or `openclaude` is installed, the matching NuShell extern layer loads without startup errors
 - If neither is installed, the shell still starts normally with both integrations inactive
 - New tabs and splits continue the expected working flow

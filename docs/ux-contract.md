@@ -49,7 +49,7 @@ This document defines what must stay consistent between Windows and macOS, and w
 - The WezTerm baseline uses a single left prompt
 - NuShell's built-in `vi` indicators and right-prompt path are disabled
 - `autoload/zz-prompt-overrides.nu` is the managed late-load guard that reasserts the single left-prompt policy after generated autoload files
-- On Windows, the WezTerm baseline disables `shell_integration.osc133`
+- The shared WezTerm + NuShell baseline disables `shell_integration.osc133` across all platforms
 
 ## Prompt Segments
 

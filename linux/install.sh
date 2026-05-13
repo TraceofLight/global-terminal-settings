@@ -266,6 +266,7 @@ stage_assets() {
     sync_target "$SOURCE_ROOT/fonts" "$INSTALL_ROOT/fonts"
     sync_target "$SOURCE_ROOT/wezterm" "$INSTALL_ROOT/wezterm"
   fi
+  sync_target "$SOURCE_ROOT/mise" "$INSTALL_ROOT/mise"
   sync_target "$SOURCE_ROOT/nushell" "$INSTALL_ROOT/nushell"
   sync_target "$SOURCE_ROOT/starship" "$INSTALL_ROOT/starship"
   sync_target "$SOURCE_ROOT/nvim" "$INSTALL_ROOT/nvim"
@@ -285,6 +286,7 @@ sync_app_configs() {
   fi
   sync_target "$INSTALL_ROOT/starship/starship.toml" "$CONFIG_ROOT/starship.toml"
   copy_managed_file "$INSTALL_ROOT/aqua/aqua.yaml" "$CONFIG_ROOT/aquaproj-aqua/aqua.yaml"
+  copy_managed_file "$INSTALL_ROOT/mise/config.toml" "$CONFIG_ROOT/mise/config.toml"
 
   log_stage 5 "Wire NuShell"
   copy_managed_file "$INSTALL_ROOT/nushell/config.nu" "$nushell_root/config.nu"
@@ -340,6 +342,24 @@ initialize_aqua_packages() {
   fi
 
   prepend_aqua_bin_to_path
+}
+
+initialize_mise_runtimes() {
+  local mise_config="$CONFIG_ROOT/mise/config.toml"
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Install mise runtimes from %s\n' "$mise_config"
+    return 0
+  fi
+
+  if ! command -v mise >/dev/null 2>&1; then
+    printf 'warn  mise command not found; skipping language runtime install\n' >&2
+    return 0
+  fi
+
+  if ! mise install -y; then
+    printf 'warn  mise install failed; rerun manually after resolving the error\n' >&2
+  fi
 }
 
 persist_bash_handoff_block() {
@@ -504,8 +524,7 @@ NU_HEAD
   )
 
   $env.PROMPT_COMMAND = {||
-    let cmd_duration_ms = ($env.CMD_DURATION_MS? | default "0")
-    let cmd_duration = if $cmd_duration_ms == "0823" { 0 } else { $cmd_duration_ms }
+    let cmd_duration = ($env.CMD_DURATION_MS? | default 0 | into int)
     let terminal_width = try { (term size).columns } catch { 80 }
     let job_args = if (which "job list" | where type == built-in | is-not-empty) {
       ["--jobs", (job list | length)]
@@ -638,6 +657,7 @@ if [[ $SKIP_CONFIGS -eq 0 ]]; then
   stage_assets
   sync_app_configs
   initialize_aqua_packages
+  initialize_mise_runtimes
   initialize_nushell_autoload
   sync_nvim_config
 fi

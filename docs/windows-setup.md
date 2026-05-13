@@ -59,8 +59,9 @@ Key packages:
 - `NuShell`
 - `Git`
 - `aqua`
+- `mise`
 
-Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available.
+Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available. Cross-platform language runtimes (Java, Python) are declared in [shared/mise/config.toml](../shared/mise/config.toml) and installed by mise after the aqua step.
 
 ### 3. Stage Managed Assets
 
@@ -68,6 +69,7 @@ Managed assets are staged into `%USERPROFILE%\.config\terminal-bootstrap`.
 
 - `fonts/`
 - `aqua/`
+- `mise/`
 - `nushell/`
 - `starship/`
 - `wezterm/`
@@ -80,6 +82,7 @@ The following files are copied into their real locations by default. `-SyncMode 
 - `shared/wezterm/wezterm.lua` -> `%USERPROFILE%\.wezterm.lua`
 - `shared/starship/starship.toml` -> `%USERPROFILE%\.config\starship.toml`
 - `shared/aqua/aqua.yaml` -> `%USERPROFILE%\.config\aquaproj-aqua\aqua.yaml`
+- `shared/mise/config.toml` -> `%USERPROFILE%\.config\mise\config.toml`
 
 `WezTerm` launches `nu -l` as the default shell. On Windows it sets `XDG_CONFIG_HOME=%USERPROFILE%\.config`, checks standard install locations derived from the environment first, and then falls back to `nu.exe` on `PATH`.
 
@@ -97,11 +100,13 @@ NuShell configuration files are placed in `%USERPROFILE%\.config\nushell` on Win
 
 On Windows, NuShell is used as the WezTerm entrypoint rather than as a separate shell-profile layer.
 
-For the Windows `WezTerm + NuShell` baseline, `shell_integration.osc133` is disabled because the default prompt markers can interfere with redraw behavior.
+The shared `WezTerm + NuShell` baseline disables `shell_integration.osc133` across all platforms because the default prompt markers can interfere with redraw behavior.
 
-### 6. Wire Starship, zoxide, fzf, carapace, and optional claude / openclaude integration
+### 6. Wire Starship, zoxide, fzf, carapace, mise, and optional claude / openclaude integration
 
 After the aqua config is copied, the installer sets user `AQUA_GLOBAL_CONFIG` to `%USERPROFILE%\.config\aquaproj-aqua\aqua.yaml` when the user has not already set a custom value, then runs `aqua install -a` when `aqua` is available. If that command fails, the installer warns and continues because aqua lazy install can retry in a later shell session.
+
+After the mise config is copied, the installer runs `mise install -y` when `mise` is available so the runtimes pinned in `shared/mise/config.toml` (Java, Python) are present after bootstrap. If the mise binary is missing or the command fails, the installer warns and continues; the runtimes can be installed later with `mise install`. Resolved mise shim directories (`%LOCALAPPDATA%\mise\shims` and `$MISE_DATA_DIR\shims` when set) are prepended to `$env.PATH` from `env.nu`, so mise-managed runtimes resolve from any NuShell session including GUI-launched ones.
 
 The installer generates `carapace.nu`, `starship.nu`, and `zoxide.nu` into the resolved NuShell config directory under `autoload\`, and `config.nu` sources them when they are present. These binaries are provided by aqua. The generated `starship.nu` resolves the real Starship executable with `aqua which starship` when possible, rather than calling the aqua shim from every prompt render. It also disables the NuShell right-prompt path and catches Starship prompt-render failures so Ctrl-C during an external command cannot surface as a prompt hook error. `autoload\zz-prompt-overrides.nu` is staged as a managed late-load guard; the `zz-` prefix intentionally keeps it after normal generated autoload files in alphabetical load order. Managed and generated autoload files may be temporarily absent during bootstrap or repair without blocking shell startup. The installer adds aqua's root `bin` directory to the user `PATH` after package installation so aqua-managed CLIs can resolve in fresh PowerShell and `cmd` sessions. A machine-wide legacy install that remains earlier in the machine `PATH` can still win there; remove that legacy install or machine `PATH` entry when fully migrating a tool to aqua. `env.nu` sets `XDG_CONFIG_HOME` and `STARSHIP_CONFIG` when they are absent, sets `AQUA_GLOBAL_CONFIG` to `%USERPROFILE%\.config\aquaproj-aqua\aqua.yaml` only when the variable is not already set, and prepends both aqua's root `bin` directory and the Windows aqua executable directory when present, so managed NuShell sessions prefer aqua even when launched from GUI tools such as JetBrains IDEs with stale environment variables. `config.nu` also optionally sources `autoload\user-overrides.nu` when present; this file is reserved for user-managed aliases, Java/runtime setup, and scripts and is not overwritten by reinstall. If a runtime such as Java needs a custom aqua registry or different version policy, point user `AQUA_GLOBAL_CONFIG` or `user-overrides.nu` at a user-owned aqua config that includes the managed package list plus the local runtime package. If that user config uses a non-standard registry, also set user `AQUA_POLICY_CONFIG`; the installer carries the user policy value into the aqua install process.
 
@@ -122,6 +127,7 @@ Minimum verification:
 - WezTerm opens successfully and starts NuShell
 - The Starship prompt renders correctly
 - `aqua`, `git`, and the aqua-managed `btm`, `carapace`, `zoxide`, `fzf`, `rg`, `fd`, and `nvim` run successfully
+- `mise current` shows the runtimes declared in `shared/mise/config.toml` and `java -version` / `python --version` resolve through the mise shim directory
 - If `claude` or `openclaude` is installed, the matching NuShell extern layer loads without startup errors
 - If neither is installed, the shell still starts normally with both integrations inactive
 - New tabs and splits continue the expected working flow

@@ -98,6 +98,18 @@ if (($aqua_bin | is-not-empty) and ($aqua_bin | path exists)) {
   $env.PATH = (([$aqua_bin] | append ($env.PATH? | default [])) | uniq)
 }
 
+let mise_shims_candidates = [
+  (if ($env.MISE_DATA_DIR? | is-not-empty) { $env.MISE_DATA_DIR | path join "shims" })
+  (if ($env.XDG_DATA_HOME? | is-not-empty) { $env.XDG_DATA_HOME | path join "mise" "shims" })
+  (if ($env.HOME? | is-not-empty) { $env.HOME | path join ".local" "share" "mise" "shims" })
+  (if ($env.LOCALAPPDATA? | is-not-empty) { $env.LOCALAPPDATA | path join "mise" "shims" })
+  (if ($env.USERPROFILE? | is-not-empty) { $env.USERPROFILE | path join ".local" "share" "mise" "shims" })
+] | compact | where {|it| $it | path exists } | uniq
+
+if ($mise_shims_candidates | is-not-empty) {
+  $env.PATH = (($mise_shims_candidates | append ($env.PATH? | default [])) | uniq)
+}
+
 $env.EDITOR = "nvim"
 $env.VISUAL = "nvim"
 $env.FZF_DEFAULT_COMMAND = "fd --type f --strip-cwd-prefix"

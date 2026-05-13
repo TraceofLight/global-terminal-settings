@@ -25,5 +25,11 @@
             WingetId = 'aquaproj.aqua'
             Chocolatey = 'aqua'
         }
+        @{
+            Name = 'mise'
+            DetectCommand = 'mise'
+            WingetId = 'jdx.mise'
+            Chocolatey = 'mise'
+        }
     )
 }

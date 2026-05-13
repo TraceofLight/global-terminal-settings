@@ -3,4 +3,5 @@ cask "font-symbols-only-nerd-font"
 
 brew "aqua"
 brew "git"
+brew "mise"
 brew "nushell"
