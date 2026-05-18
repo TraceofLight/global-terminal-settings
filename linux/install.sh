@@ -362,6 +362,39 @@ initialize_mise_runtimes() {
   fi
 }
 
+persist_profile_env_block() {
+  local profile="$HOME/.profile"
+  local begin_marker="# BEGIN managed by terminal-bootstrap (env)"
+
+  if [[ -f "$profile" ]] && grep -qF "$begin_marker" "$profile"; then
+    printf 'skip  %s already has terminal-bootstrap env block\n' "$profile"
+    return 0
+  fi
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Append terminal-bootstrap env block to %s\n' "$profile"
+    return 0
+  fi
+
+  [[ -f "$profile" ]] || touch "$profile"
+
+  cat >> "$profile" <<'PROFILE_EOF'
+
+# BEGIN managed by terminal-bootstrap (env)
+# Linuxbrew shellenv. Sourced for all bash login shells, including the
+# non-interactive case (e.g. `ssh host -- bash -lc "..."`), so managed CLIs
+# (nu, aqua, mise, ...) resolve there too. ~/.bashrc has its own copy guarded
+# by the bash early-return-for-non-interactive idiom, which is why login
+# non-interactive shells must source the env from here instead.
+if [ -d /home/linuxbrew/.linuxbrew ]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+# END managed by terminal-bootstrap (env)
+PROFILE_EOF
+
+  printf 'ok    Added terminal-bootstrap env block to %s\n' "$profile"
+}
+
 persist_bash_handoff_block() {
   local bashrc="$HOME/.bashrc"
   local begin_marker="# BEGIN managed by terminal-bootstrap"
@@ -415,6 +448,37 @@ uses_zsh_shell() {
   return 1
 }
 
+persist_zprofile_env_block() {
+  local zprofile="$HOME/.zprofile"
+  local begin_marker="# BEGIN managed by terminal-bootstrap (env)"
+
+  if [[ -f "$zprofile" ]] && grep -qF "$begin_marker" "$zprofile"; then
+    printf 'skip  %s already has terminal-bootstrap env block\n' "$zprofile"
+    return 0
+  fi
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Append terminal-bootstrap env block to %s\n' "$zprofile"
+    return 0
+  fi
+
+  [[ -f "$zprofile" ]] || touch "$zprofile"
+
+  cat >> "$zprofile" <<'ZPROFILE_EOF'
+
+# BEGIN managed by terminal-bootstrap (env)
+# Linuxbrew shellenv for zsh login shells, including the non-interactive
+# case (e.g. `ssh host -- zsh -lc "..."`). ~/.zshrc holds the interactive
+# handoff to nu separately.
+if [ -d /home/linuxbrew/.linuxbrew ]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+# END managed by terminal-bootstrap (env)
+ZPROFILE_EOF
+
+  printf 'ok    Added terminal-bootstrap env block to %s\n' "$zprofile"
+}
+
 persist_zsh_handoff_block() {
   local zshrc="$HOME/.zshrc"
   local begin_marker="# BEGIN managed by terminal-bootstrap"
@@ -452,9 +516,11 @@ ZSHRC_EOF
 }
 
 persist_shell_handoff_blocks() {
+  persist_profile_env_block
   persist_bash_handoff_block
 
   if uses_zsh_shell; then
+    persist_zprofile_env_block
     persist_zsh_handoff_block
   fi
 }
