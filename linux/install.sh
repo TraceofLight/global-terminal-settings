@@ -6,6 +6,10 @@ DRY_RUN=0
 SKIP_PACKAGES=0
 SKIP_CONFIGS=0
 TARGET=""
+INCLUDE_ROOT=1  # default on; install.sh prompts for sudo up front so a single
+                # `bash install.sh` invocation wires both user and root in one
+                # pass. Use --skip-root to disable on machines where the
+                # invoking user is not (or should not be) a sudoer.
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -26,9 +30,28 @@ while [[ $# -gt 0 ]]; do
       TARGET="${2:?missing value for --target}"
       shift
       ;;
+    --include-root)
+      # Kept for backward compatibility — root wiring is on by default.
+      INCLUDE_ROOT=1
+      ;;
+    --skip-root)
+      INCLUDE_ROOT=0
+      ;;
     --help|-h)
       cat <<'EOF'
-Usage: ./install.sh [--dry-run] [--sync-mode auto|link|copy] [--skip-packages] [--skip-configs] [--target linux|wsl]
+Usage: ./install.sh [--dry-run] [--sync-mode auto|link|copy] [--skip-packages] [--skip-configs] [--target linux|wsl] [--skip-root]
+
+  --skip-root     Disable the default root wiring. By default install.sh
+                  also wires ~root with the same Linuxbrew PATH, aqua/mise
+                  env, nu shell handoff, and symlinks to the invoking
+                  user's ~/.config/{nushell,nvim,aquaproj-aqua,mise,
+                  starship.toml} — so `sudo -i` lands in the same managed
+                  UX. Pass this flag on machines where the invoking user
+                  is not (or should not be) a sudoer, or when sudo isn't
+                  available.
+
+  --include-root  Kept for backward compatibility; root wiring is now on
+                  by default, so this flag is a no-op.
 EOF
       exit 0
       ;;
@@ -525,6 +548,124 @@ persist_shell_handoff_blocks() {
   fi
 }
 
+persist_root_setup() {
+  if ! command -v sudo >/dev/null 2>&1; then
+    printf 'warn  sudo not available; cannot wire root (--include-root skipped)\n' >&2
+    return 0
+  fi
+
+  log_stage R "Root environment (wire ~root)"
+
+  local user_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+  local user_aqua_bin="$HOME/.local/share/aquaproj-aqua/bin"
+  local user_home="$HOME"
+
+  local env_marker_begin="# BEGIN managed by terminal-bootstrap (root-env)"
+  local env_marker_end="# END managed by terminal-bootstrap (root-env)"
+  local handoff_marker_begin="# BEGIN managed by terminal-bootstrap (root-handoff)"
+  local handoff_marker_end="# END managed by terminal-bootstrap (root-handoff)"
+
+  # /root/.profile env block (login shell PATH for non-interactive too)
+  if sudo grep -qF "$env_marker_begin" /root/.profile 2>/dev/null; then
+    printf 'skip  /root/.profile already has root-env block\n'
+  elif [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Append root-env block to /root/.profile\n'
+  else
+    sudo tee -a /root/.profile >/dev/null <<EOF
+
+$env_marker_begin
+# Reuse $user_home Linuxbrew/aqua/mise environment. Sourced for all root
+# login shells (interactive and non-interactive) so brew/aqua-managed CLIs
+# resolve under sudo -i, ssh root@host, etc.
+if [ -d /home/linuxbrew/.linuxbrew ]; then
+  eval "\$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+if [ -f "$user_config_dir/aquaproj-aqua/aqua.yaml" ]; then
+  export AQUA_GLOBAL_CONFIG="$user_config_dir/aquaproj-aqua/aqua.yaml"
+fi
+if [ -d "$user_aqua_bin" ]; then
+  case ":\$PATH:" in
+    *":$user_aqua_bin:"*) ;;
+    *) export PATH="$user_aqua_bin:\$PATH" ;;
+  esac
+fi
+$env_marker_end
+EOF
+    printf 'ok    Added root-env block to /root/.profile\n'
+  fi
+
+  # /root/.bashrc handoff block (interactive root → nu, with bash escape hatch)
+  if sudo grep -qF "$handoff_marker_begin" /root/.bashrc 2>/dev/null; then
+    printf 'skip  /root/.bashrc already has root-handoff block\n'
+  elif [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Append root-handoff block to /root/.bashrc\n'
+  else
+    sudo tee -a /root/.bashrc >/dev/null <<EOF
+
+$handoff_marker_begin
+# Same env as /root/.profile, repeated here for non-login interactive shells
+# (ubuntu .bashrc early-returns for non-interactive, so this also won't run
+# in non-interactive non-login — by bash invocation rules).
+if [ -d /home/linuxbrew/.linuxbrew ]; then
+  eval "\$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+if [ -f "$user_config_dir/aquaproj-aqua/aqua.yaml" ]; then
+  export AQUA_GLOBAL_CONFIG="$user_config_dir/aquaproj-aqua/aqua.yaml"
+fi
+if [ -d "$user_aqua_bin" ]; then
+  case ":\$PATH:" in
+    *":$user_aqua_bin:"*) ;;
+    *) export PATH="$user_aqua_bin:\$PATH" ;;
+  esac
+fi
+
+# Hand off interactive root bash sessions to nu (same UX as the user).
+# Emergency escape: TERMINAL_BOOTSTRAP_NO_HANDOFF=1 ssh root@host
+if [[ \$- == *i* ]] && [ -z "\${TERMINAL_BOOTSTRAP_NO_HANDOFF:-}" ] && [ -z "\${TERMINAL_BOOTSTRAP_NU_HANDOFF:-}" ] && command -v nu >/dev/null 2>&1; then
+  export TERMINAL_BOOTSTRAP_NU_HANDOFF=1
+  exec nu -l
+fi
+$handoff_marker_end
+EOF
+    printf 'ok    Added root-handoff block to /root/.bashrc\n'
+  fi
+
+  # /root/.config symlinks → invoking user's managed config (single source of truth)
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Create /root/.config and symlink to %s\n' "$user_config_dir"
+  else
+    sudo mkdir -p /root/.config
+
+    local sub src target
+    for sub in nushell nvim aquaproj-aqua mise; do
+      src="$user_config_dir/$sub"
+      target="/root/.config/$sub"
+      if [ ! -d "$src" ]; then
+        printf 'warn  source %s missing; skipping symlink for %s\n' "$src" "$sub" >&2
+        continue
+      fi
+      if sudo test -L "$target" || sudo test -e "$target"; then
+        printf 'skip  %s already exists\n' "$target"
+      else
+        sudo ln -s "$src" "$target"
+        printf 'ok    Symlink %s -> %s\n' "$target" "$src"
+      fi
+    done
+
+    # starship.toml lives at $user_config_dir/starship.toml (file, not dir)
+    src="$user_config_dir/starship.toml"
+    target="/root/.config/starship.toml"
+    if [ ! -f "$src" ]; then
+      printf 'warn  source %s missing; skipping starship symlink\n' "$src" >&2
+    elif sudo test -L "$target" || sudo test -e "$target"; then
+      printf 'skip  %s already exists\n' "$target"
+    else
+      sudo ln -s "$src" "$target"
+      printf 'ok    Symlink %s -> %s\n' "$target" "$src"
+    fi
+  fi
+}
+
 nu_string_literal() {
   local value="$1"
   value="${value//\\/\\\\}"
@@ -726,6 +867,38 @@ if [[ $SKIP_CONFIGS -eq 0 ]]; then
   initialize_mise_runtimes
   initialize_nushell_autoload
   sync_nvim_config
+fi
+
+# Root wiring is on by default and independent of SKIP_CONFIGS. Three
+# auth paths in order, mirroring the mac installer's dispatch model:
+#   1. `sudo -n true` succeeds — cached or NOPASSWD, no prompt needed.
+#   2. Interactive TTY present — `sudo -v` prompts for the password and
+#      caches it so the many sudos inside persist_root_setup don't each
+#      re-prompt.
+#   3. Neither — warn and skip the whole step rather than fail the
+#      install, so non-sudoer / non-TTY contexts still get a working
+#      user-level setup. (Use --skip-root for explicit opt-out.)
+if [[ $INCLUDE_ROOT -eq 1 ]]; then
+  if ! command -v sudo >/dev/null 2>&1; then
+    printf 'warn  sudo not available; skipping root wiring\n' >&2
+    INCLUDE_ROOT=0
+  elif [[ $DRY_RUN -eq 0 ]]; then
+    if sudo -n true 2>/dev/null; then
+      :  # NOPASSWD or cache already valid
+    elif [[ -t 0 ]]; then
+      if ! sudo -v; then
+        printf 'warn  sudo authentication failed; skipping root wiring\n' >&2
+        INCLUDE_ROOT=0
+      fi
+    else
+      printf 'warn  no TTY and sudo requires a password; skipping root wiring\n' >&2
+      INCLUDE_ROOT=0
+    fi
+  fi
+fi
+
+if [[ $INCLUDE_ROOT -eq 1 ]]; then
+  persist_root_setup
 fi
 
 log_stage 8 "Verify"

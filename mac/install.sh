@@ -5,6 +5,10 @@ SYNC_MODE="copy"
 DRY_RUN=0
 SKIP_PACKAGES=0
 SKIP_CONFIGS=0
+INCLUDE_ROOT=1  # default on; install.sh prompts for sudo up front so a single
+                # `bash install.sh` invocation wires both user and root in one
+                # pass. Use --skip-root to disable on machines where the
+                # invoking user is not (or should not be) a sudoer.
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -21,9 +25,28 @@ while [[ $# -gt 0 ]]; do
     --skip-configs)
       SKIP_CONFIGS=1
       ;;
+    --include-root)
+      # Kept for backward compatibility — root wiring is on by default.
+      INCLUDE_ROOT=1
+      ;;
+    --skip-root)
+      INCLUDE_ROOT=0
+      ;;
     --help|-h)
       cat <<'EOF'
-Usage: ./install.sh [--dry-run] [--sync-mode auto|link|copy] [--skip-packages] [--skip-configs]
+Usage: ./install.sh [--dry-run] [--sync-mode auto|link|copy] [--skip-packages] [--skip-configs] [--skip-root]
+
+  --skip-root     Disable the default root wiring. By default install.sh
+                  also wires /var/root with the same Homebrew PATH,
+                  aqua/mise env, nu shell handoff, and symlinks to the
+                  invoking user's ~/.config/{nushell,nvim,aquaproj-aqua,
+                  mise,starship.toml} — so `sudo -i` lands in the same
+                  managed UX. Pass this flag on shared machines where the
+                  invoking user is not (or should not be) a sudoer, or
+                  when sudo isn't available.
+
+  --include-root  Kept for backward compatibility; root wiring is now on
+                  by default, so this flag is a no-op.
 EOF
       exit 0
       ;;
@@ -469,6 +492,180 @@ sync_nvim_config() {
   sync_target "$INSTALL_ROOT/nvim" "$NVIM_TARGET"
 }
 
+resolve_brew_prefix() {
+  if [[ -x /opt/homebrew/bin/brew ]]; then
+    printf '/opt/homebrew\n'
+  elif [[ -x /usr/local/bin/brew ]]; then
+    printf '/usr/local\n'
+  fi
+}
+
+persist_root_setup() {
+  if ! command -v sudo >/dev/null 2>&1; then
+    printf 'warn  sudo not available; cannot wire root\n' >&2
+    return 0
+  fi
+
+  log_stage R "Root environment (wire /var/root)"
+
+  local user_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+  local user_aqua_bin="$HOME/.local/share/aquaproj-aqua/bin"
+  local user_home="$HOME"
+  local root_home="/var/root"
+  local brew_prefix
+  brew_prefix="$(resolve_brew_prefix)"
+  if [[ -z "$brew_prefix" ]]; then
+    printf 'warn  Homebrew not found; root env block will be inert\n' >&2
+  fi
+
+  local env_marker_begin="# BEGIN managed by terminal-bootstrap (root-env)"
+  local env_marker_end="# END managed by terminal-bootstrap (root-env)"
+  local handoff_marker_begin="# BEGIN managed by terminal-bootstrap (root-handoff)"
+  local handoff_marker_end="# END managed by terminal-bootstrap (root-handoff)"
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Build root-side script and execute as root in one shot\n'
+    printf '[dry-run]   target: %s/.zprofile (env block), %s/.zshrc (handoff)\n' "$root_home" "$root_home"
+    printf '[dry-run]   symlinks: %s/.config/{nushell,nvim,aquaproj-aqua,mise,starship.toml} -> %s\n' "$root_home" "$user_config_dir"
+    return 0
+  fi
+
+  # Build a single root-side script and execute it via one privileged
+  # dispatch. This avoids per-command sudo prompts (and, on macOS, lets
+  # us fall back to a single GUI password popup via osascript when no
+  # TTY is available — e.g. when install.sh is invoked from CI, IDE
+  # "run" buttons, or agent shells where sudo can't read a password).
+  local root_script_file
+  root_script_file=$(mktemp -t terminal-bootstrap-root)
+
+  # Write the inner script with variables expanded by the outer shell.
+  # Quoting model: the heredoc body is UNquoted so $variables here
+  # interpolate now; the inner heredocs (EOF_ENV, EOF_HANDOFF) use
+  # \$ for variables that must remain literal at root-run time.
+  cat > "$root_script_file" <<INNER_SCRIPT
+#!/bin/bash
+set -e
+
+ROOT_HOME='$root_home'
+USER_HOME='$user_home'
+USER_CONFIG_DIR='$user_config_dir'
+USER_AQUA_BIN='$user_aqua_bin'
+BREW_PREFIX='$brew_prefix'
+ENV_MARKER_BEGIN='$env_marker_begin'
+ENV_MARKER_END='$env_marker_end'
+HANDOFF_MARKER_BEGIN='$handoff_marker_begin'
+HANDOFF_MARKER_END='$handoff_marker_end'
+
+# env block → /var/root/.zprofile
+if grep -qF "\$ENV_MARKER_BEGIN" "\$ROOT_HOME/.zprofile" 2>/dev/null; then
+  echo "skip  \$ROOT_HOME/.zprofile already has root-env block"
+else
+  cat >> "\$ROOT_HOME/.zprofile" <<EOF_ENV
+
+\$ENV_MARKER_BEGIN
+# Reuse \$USER_HOME Homebrew/aqua/mise environment. Sourced for all root
+# login shells (interactive and non-interactive) so brew/aqua-managed CLIs
+# resolve under sudo -i, ssh root@host, etc.
+if [ -x "\$BREW_PREFIX/bin/brew" ]; then
+  eval "\\\$(\$BREW_PREFIX/bin/brew shellenv)"
+fi
+if [ -f "\$USER_CONFIG_DIR/aquaproj-aqua/aqua.yaml" ]; then
+  export AQUA_GLOBAL_CONFIG="\$USER_CONFIG_DIR/aquaproj-aqua/aqua.yaml"
+fi
+if [ -d "\$USER_AQUA_BIN" ]; then
+  case ":\\\$PATH:" in
+    *":\$USER_AQUA_BIN:"*) ;;
+    *) export PATH="\$USER_AQUA_BIN:\\\$PATH" ;;
+  esac
+fi
+\$ENV_MARKER_END
+EOF_ENV
+  echo "ok    Added root-env block to \$ROOT_HOME/.zprofile"
+fi
+
+# handoff block → /var/root/.zshrc
+if grep -qF "\$HANDOFF_MARKER_BEGIN" "\$ROOT_HOME/.zshrc" 2>/dev/null; then
+  echo "skip  \$ROOT_HOME/.zshrc already has root-handoff block"
+else
+  cat >> "\$ROOT_HOME/.zshrc" <<EOF_HANDOFF
+
+\$HANDOFF_MARKER_BEGIN
+# Same env as /var/root/.zprofile, repeated here for non-login interactive
+# shells. zsh sources .zprofile only for login shells and .zshrc for
+# interactive shells.
+if [ -x "\$BREW_PREFIX/bin/brew" ]; then
+  eval "\\\$(\$BREW_PREFIX/bin/brew shellenv)"
+fi
+if [ -f "\$USER_CONFIG_DIR/aquaproj-aqua/aqua.yaml" ]; then
+  export AQUA_GLOBAL_CONFIG="\$USER_CONFIG_DIR/aquaproj-aqua/aqua.yaml"
+fi
+if [ -d "\$USER_AQUA_BIN" ]; then
+  case ":\\\$PATH:" in
+    *":\$USER_AQUA_BIN:"*) ;;
+    *) export PATH="\$USER_AQUA_BIN:\\\$PATH" ;;
+  esac
+fi
+
+# Hand off interactive root zsh sessions to nu (same UX as the user).
+# Emergency escape: TERMINAL_BOOTSTRAP_NO_HANDOFF=1 sudo -i
+if [[ -o interactive ]] && [ -z "\\\${TERMINAL_BOOTSTRAP_NO_HANDOFF:-}" ] && [ -z "\\\${TERMINAL_BOOTSTRAP_NU_HANDOFF:-}" ] && command -v nu >/dev/null 2>&1; then
+  export TERMINAL_BOOTSTRAP_NU_HANDOFF=1
+  exec nu -l
+fi
+\$HANDOFF_MARKER_END
+EOF_HANDOFF
+  echo "ok    Added root-handoff block to \$ROOT_HOME/.zshrc"
+fi
+
+# /var/root/.config symlinks → invoking user's managed config
+mkdir -p "\$ROOT_HOME/.config"
+for sub in nushell nvim aquaproj-aqua mise; do
+  src="\$USER_CONFIG_DIR/\$sub"
+  target="\$ROOT_HOME/.config/\$sub"
+  if [ ! -d "\$src" ]; then
+    echo "warn  source \$src missing; skipping symlink for \$sub" >&2
+    continue
+  fi
+  if [ -L "\$target" ] || [ -e "\$target" ]; then
+    echo "skip  \$target already exists"
+  else
+    ln -s "\$src" "\$target"
+    echo "ok    Symlink \$target -> \$src"
+  fi
+done
+
+src="\$USER_CONFIG_DIR/starship.toml"
+target="\$ROOT_HOME/.config/starship.toml"
+if [ ! -f "\$src" ]; then
+  echo "warn  source \$src missing; skipping starship symlink" >&2
+elif [ -L "\$target" ] || [ -e "\$target" ]; then
+  echo "skip  \$target already exists"
+else
+  ln -s "\$src" "\$target"
+  echo "ok    Symlink \$target -> \$src"
+fi
+INNER_SCRIPT
+
+  chmod +x "$root_script_file"
+
+  # Dispatch — prefer sudo (TTY or cached), fall back to osascript GUI
+  # popup on macOS without TTY, otherwise warn and skip.
+  if sudo -n true 2>/dev/null; then
+    sudo bash "$root_script_file"
+  elif [[ -t 0 ]]; then
+    sudo bash "$root_script_file"
+  elif command -v osascript >/dev/null 2>&1; then
+    printf 'info  no TTY available; using macOS GUI password prompt for the root setup\n'
+    if ! osascript -e "do shell script \"bash $root_script_file\" with administrator privileges" 2>/dev/null; then
+      printf 'warn  GUI authentication failed or cancelled; root wiring skipped\n' >&2
+    fi
+  else
+    printf 'warn  no TTY and no osascript; root wiring skipped\n' >&2
+  fi
+
+  rm -f "$root_script_file"
+}
+
 printf 'terminal-bootstrap mac installer\n'
 printf 'Mode: %s\n' "$SYNC_MODE"
 printf 'DryRun: %s\n' "$DRY_RUN"
@@ -487,6 +684,13 @@ if [[ $SKIP_CONFIGS -eq 0 ]]; then
   initialize_mise_runtimes
   initialize_nushell_autoload
   sync_nvim_config
+fi
+
+# Root wiring is on by default. persist_root_setup builds a single
+# root-side script and dispatches it once (sudo if cache/TTY, osascript
+# GUI popup if no TTY on macOS), so there's no separate priming step.
+if [[ $INCLUDE_ROOT -eq 1 ]]; then
+  persist_root_setup
 fi
 
 log_stage 8 "Verify"

@@ -39,6 +39,8 @@ Primary options:
 - `--skip-packages`: skip package installation
 - `--skip-configs`: skip asset staging and app configuration deployment
 - `--target linux|wsl`: override the auto-detected target
+- `--skip-root`: disable the default root wiring (see "Root environment" section below). Use on machines where the invoking user is not a sudoer, or when sudo isn't available
+- `--include-root`: kept for backward compatibility; root wiring is on by default, so this flag is a no-op
 
 The installer auto-detects WSL via `$WSL_DISTRO_NAME` and the `microsoft` marker in `/proc/version`. The detected target is printed as `Mode: native-linux` or `Mode: wsl` at start.
 
@@ -172,6 +174,24 @@ Why the env block is separate from the handoff block: Ubuntu's default `~/.bashr
 The combined effect: SSH and `wsl` from Windows open bash briefly, which then re-execs into a login nu session. The handoff runs only for interactive shells, so non-interactive invocations (`ssh host command`, `wsl -- <cmd>`, VS Code Remote WSL server commands) skip the nu hop. They still get the Linuxbrew PATH from `~/.profile` when invoked as login shells (e.g. `ssh host "bash -lc 'nu --version'"`); non-login non-interactive shells (a bare `ssh host "nu --version"`) do not source either file and remain unaffected — that is a bash invocation rule, not a managed behavior. To disable the handoff for a session, export `TERMINAL_BOOTSTRAP_NO_HANDOFF=1` before launching the interactive shell.
 
 The env block is bounded by `# BEGIN managed by terminal-bootstrap (env)` / `# END managed by terminal-bootstrap (env)` markers, and the handoff block by `# BEGIN managed by terminal-bootstrap` / `# END managed by terminal-bootstrap`. Each block's idempotency check looks for its own BEGIN marker and skips re-append if present. To remove either permanently, delete the matching managed block from `~/.profile` / `~/.zprofile` (env) and `~/.bashrc` / `~/.zshrc` (handoff).
+
+## Root environment
+
+The installer wires `~root` alongside the invoking user by default. On servers where administrators frequently enter `sudo -i` / `ssh root@host` / `sudo su -`, the root account otherwise ends up with a bare bash shell that knows nothing about the managed Linuxbrew PATH, aqua-managed CLIs, or NuShell aliases — so a habit like `vi` (aliased to `nvim` inside NuShell) silently breaks under root because: (a) the alias is defined in `~ubuntu/.config/nushell/config.nu`, not in root's shell; (b) `nvim` lives at `~ubuntu/.local/share/aquaproj-aqua/bin/nvim`, which is not on root's `$PATH`; (c) aqua's stub launcher needs `AQUA_GLOBAL_CONFIG`, which root doesn't have. All three layers miss, and the editor stops working.
+
+The default behavior plugs all three:
+
+- `/root/.profile` env block (idempotent, marker `# BEGIN managed by terminal-bootstrap (root-env)`): sources Linuxbrew `shellenv`, exports `AQUA_GLOBAL_CONFIG` to the invoking user's aqua config, and prepends aqua's bin directory to `$PATH`. Effective for all root login shells, interactive or not (e.g. `ssh root@host -- bash -lc "..."`).
+- `/root/.bashrc` handoff block (idempotent, marker `# BEGIN managed by terminal-bootstrap (root-handoff)`): repeats the env setup (for non-login interactive shells) and re-execs into `nu -l` when the shell is interactive. Same escape hatches as the regular user handoff (`TERMINAL_BOOTSTRAP_NO_HANDOFF=1`, `TERMINAL_BOOTSTRAP_NU_HANDOFF` guard).
+- `/root/.config/{nushell,nvim,aquaproj-aqua,mise}` and `/root/.config/starship.toml` symlinks → corresponding paths under the invoking user's `~/.config`. Root reads the same nu config, the same LazyVim setup, the same aqua/mise pins, and the same starship prompt. Single source of truth: edits in the user's home apply to both.
+
+With this in place, `sudo -i` lands in nu with the full managed UX. `sudo nvim /etc/foo` works because aqua's stub now resolves with `AQUA_GLOBAL_CONFIG` set. The `vi` alias works because root is in nu, where the alias is defined.
+
+The installer primes the sudo credential cache (`sudo -v`) up front so the many internal sudo calls don't each re-prompt. If sudo authentication fails or sudo isn't installed, the step is skipped with a warn and the rest of the install proceeds normally — so non-sudoer accounts still get a working user-level setup. Pass `--skip-root` to disable explicitly.
+
+**Security model**: root reuses the *invoking user*'s binaries and config. If the user account is compromised, the attacker can plant a malicious binary in `~/.local/share/aquaproj-aqua/bin/` and the next `sudo -i` will execute it as root. This is harmless when the user is already a sudoer (the attacker can do the same with `sudo bash`), but on shared machines where the invoking user is NOT a sudoer this leaks a privilege-escalation path — pass `--skip-root` to disable.
+
+To remove after the fact: delete the two managed blocks from `/root/.profile` and `/root/.bashrc`, and `sudo rm /root/.config/{nushell,nvim,aquaproj-aqua,mise,starship.toml}` (these are symlinks; removing them does not touch the source files).
 
 ## Sync Policy
 

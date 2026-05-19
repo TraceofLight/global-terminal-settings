@@ -5,6 +5,7 @@ add_newline = false
 format = """
 [](peach)\
 $os\
+$custom\
 [](fg:peach bg:mauve)\
 $directory\
 [](fg:mauve bg:blue)\
@@ -79,3 +80,56 @@ Ubuntu = "󰕈"
 Debian = "󰣚"
 Linux = "󰌽"
 Windows = "󰍲"
+
+# Root indicator: nf-md-shield_key icon (󰒃, U+F0D83) shown only when EUID == 0.
+# Placed in the same peach segment right after $os, so user prompts are
+# unchanged and root prompts get a red key glyph next to the OS logo.
+# Uses `id -u` rather than the [username] module because the latter also
+# triggers on plain SSH sessions (non-root remote shells), which would
+# misleadingly mark a regular user session as root.
+# Renders correctly with any Nerd Font (this repo's baseline:
+# Monoplex KR Wide Nerd).
+#
+# NOTE: do NOT add `shell = ["sh", "-c"]` here. starship 1.25.1 does not
+# append the command as a positional argument when `-c` is in the shell array
+# (sh dies with "-c requires an argument" and the module is always skipped).
+# starship's default behavior pipes the command into sh on stdin, which
+# works for both `command` and `when`.
+[custom.root]
+description = "Show shield_key icon when running as root"
+# Glyph embedded as a literal in `format` (same pattern as [os.symbols]).
+# U+F0BC4 (nf-md-shield_key) — newer shield_key codepoint U+F0D83
+# is missing from the Monoplex KR Wide Nerd font patch (the patch covers
+# older mdi codepoints up to roughly U+F0CFF; OS logos like U+F0548
+# render fine, but U+F0D00–F0E00 additions do not). U+F0BC4 is the
+# older mdi alias for the same shield_key design and falls inside the
+# supported range, so it renders reliably while keeping the original
+# shield+key intent.
+#
+# Style matches the OS module (`bg:peach fg:crust`) so the shield reads
+# as visually consistent with the OS logo — same dark glyph on the
+# peach background, no extra emphasis. The shield itself is the signal
+# (only shown when EUID == 0), so a louder color isn’t needed.
+#
+# Spacing: $os ends with two trailing spaces (`[ $symbol  ]`), so the
+# custom.root format leads with zero spaces and trails with two —
+# yielding `<OS>  <shield>  <transition>` which reads as a balanced
+# segment within the same peach background.
+command = "true"
+when = "test $(id -u) -eq 0"
+style = "bg:peach fg:crust"
+format = "[󰯄  ]($style)"
+[custom.admin]
+description = "Show shield_key icon when running as Windows administrator"
+# Cross-platform sibling of [custom.root] above. `net session` requires
+# admin privileges to succeed (exits 0 only when elevated; prints
+# "Access is denied" + non-zero otherwise), so we use it as the admin
+# gate. On unix `net session` either does not exist or means something
+# else, so `when` fails and the module is skipped. On Windows the
+# `test $(id -u)` gate in [custom.root] also fails and is skipped, so
+# exactly one of the two modules activates per OS — without OS-detect
+# logic in the prompt format.
+command = "true"
+when = "net session"
+style = "bg:peach fg:crust"
+format = "[\U000F0BC4  ]($style)"

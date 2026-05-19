@@ -28,4 +28,16 @@ export-env {
   $env.PROMPT_INDICATOR_VI_NORMAL = ""
   $env.PROMPT_MULTILINE_INDICATOR = ""
   $env.PROMPT_COMMAND_RIGHT = {|| "" }
+
+  # Drop STARSHIP_SHELL so starship renders [custom.*] modules.
+  # starship.nu sets STARSHIP_SHELL="nu" so starship can apply nu-specific
+  # output massaging, but a side effect on starship 1.25.x is that
+  # [custom] modules are silently omitted from the rendered prompt in
+  # that mode (verified: the custom module's bytes are present in
+  # `starship prompt` output only when STARSHIP_SHELL is unset/!=nu).
+  # We've already replaced PROMPT_INDICATOR_* above (the same things
+  # starship's nu integration sets), so dropping STARSHIP_SHELL changes
+  # only the missing custom-module behavior — visible prompt is identical
+  # otherwise, plus [custom.*] now renders correctly.
+  hide-env -i STARSHIP_SHELL
 }

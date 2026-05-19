@@ -33,6 +33,8 @@ Primary options:
 - `--sync-mode auto|link|copy`: choose how managed assets are synchronized; default is `copy`
 - `--skip-packages`: skip Homebrew package installation
 - `--skip-configs`: skip asset staging and app configuration deployment
+- `--skip-root`: disable the default root wiring (see "Root environment" section below). Use on shared Macs where the invoking user is not a sudoer, or when sudo isn't available
+- `--include-root`: kept for backward compatibility; root wiring is on by default, so this flag is a no-op
 
 ## Install Flow
 
@@ -123,6 +125,30 @@ Minimum verification:
 - If `claude` or `openclaude` is installed, the matching NuShell extern layer loads without startup errors
 - If neither is installed, the shell still starts normally with both integrations inactive
 - New tabs and splits continue the expected working flow
+
+## Root environment
+
+The installer wires `/var/root` alongside the invoking user by default. When `sudo -i` / `sudo su -` lands you in the root account, you otherwise get a bare zsh that knows nothing about the managed Homebrew PATH, aqua-managed CLIs, or NuShell aliases — so habits like `vi` (aliased to `nvim` inside NuShell) silently break under root because: (a) the alias is defined in `~user/.config/nushell/config.nu`, not in root's shell; (b) `nvim` lives at `~user/.local/share/aquaproj-aqua/bin/nvim`, which is not on root's `$PATH`; (c) aqua's stub launcher needs `AQUA_GLOBAL_CONFIG`, which root doesn't have. All three layers miss, and the editor stops working.
+
+The default behavior plugs all three:
+
+- `/var/root/.zprofile` env block (idempotent, marker `# BEGIN managed by terminal-bootstrap (root-env)`): sources Homebrew `shellenv` (auto-detected at `/opt/homebrew` or `/usr/local`), exports `AQUA_GLOBAL_CONFIG` to the invoking user's aqua config, and prepends aqua's bin directory to `$PATH`. Sourced for all root login shells, interactive or not.
+- `/var/root/.zshrc` handoff block (idempotent, marker `# BEGIN managed by terminal-bootstrap (root-handoff)`): repeats the env setup (for non-login interactive shells) and re-execs into `nu -l` when the shell is interactive. Same escape hatches as the regular user handoff (`TERMINAL_BOOTSTRAP_NO_HANDOFF=1`, `TERMINAL_BOOTSTRAP_NU_HANDOFF` guard).
+- `/var/root/.config/{nushell,nvim,aquaproj-aqua,mise}` and `/var/root/.config/starship.toml` symlinks → corresponding paths under the invoking user's `~/.config`. Root reads the same nu config, the same LazyVim setup, the same aqua/mise pins, and the same starship prompt. Single source of truth: edits in the user's home apply to both.
+
+With this in place, `sudo -i` lands in nu with the full managed UX. `sudo nvim /etc/foo` works because aqua's stub now resolves with `AQUA_GLOBAL_CONFIG` set. The `vi` alias works because root is in nu, where the alias is defined.
+
+The installer builds the root-side script once and dispatches it through a single privileged invocation, so authentication happens once and there are no per-command re-prompts. The dispatch chain is:
+
+1. `sudo` with a valid credential cache (`sudo -n true` succeeds) — runs silently.
+2. Interactive TTY present — normal `sudo bash …` terminal password prompt.
+3. No TTY but macOS available — `osascript … with administrator privileges` pops the system GUI password dialog, then runs the script as root. This lets `install.sh` succeed in non-TTY contexts (CI, IDE "Run script" buttons, agent shells) where ordinary sudo can't read a password.
+
+If all three fail or sudo isn't installed, the step is skipped with a warn and the rest of the install proceeds normally — so non-sudoer accounts still get a working user-level setup. Pass `--skip-root` to disable explicitly.
+
+**Security model**: root reuses the *invoking user*'s binaries and config. If the user account is compromised, the attacker can plant a malicious binary in `~/.local/share/aquaproj-aqua/bin/` and the next `sudo -i` will execute it as root. This is harmless on a personal Mac where the user is already a sudoer (the attacker can do the same with `sudo bash`), but on shared Macs where the invoking user is NOT a sudoer this leaks a privilege-escalation path — pass `--skip-root` to disable.
+
+To remove after the fact: delete the two managed blocks from `/var/root/.zprofile` and `/var/root/.zshrc`, and `sudo rm /var/root/.config/{nushell,nvim,aquaproj-aqua,mise,starship.toml}` (these are symlinks; removing them does not touch the source files).
 
 ## Sync Policy
 
