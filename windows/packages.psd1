@@ -3,8 +3,7 @@
         @{
             Name = 'WezTerm'
             DetectCommand = 'wezterm'
-            WingetId = 'wez.wezterm'
-            Chocolatey = 'wezterm.install'
+            WingetId = 'wez.wezterm.nightly'
         }
         @{
             Name = 'NuShell'

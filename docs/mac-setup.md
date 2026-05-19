@@ -4,7 +4,7 @@ This document defines the macOS baseline produced by the `terminal-bootstrap` re
 
 ## Target State
 
-- Terminal: `WezTerm`
+- Terminal: `WezTerm` (nightly channel — the stable cask has not been refreshed in a long time, so macOS pins the `wezterm@nightly` Homebrew cask)
 - Default interactive shell: `NuShell`
 - Prompt: `Starship`
 - Navigation: `zoxide`, `fzf`
@@ -49,7 +49,7 @@ The package baseline is defined in [mac/Brewfile](../mac/Brewfile).
 
 Key packages:
 
-- `wezterm`
+- `wezterm@nightly`
 - `nushell`
 - `git`
 - `aqua`
@@ -132,11 +132,13 @@ The installer wires `/var/root` alongside the invoking user by default. When `su
 
 The default behavior plugs all three:
 
-- `/var/root/.zprofile` env block (idempotent, marker `# BEGIN managed by terminal-bootstrap (root-env)`): sources Homebrew `shellenv` (auto-detected at `/opt/homebrew` or `/usr/local`), exports `AQUA_GLOBAL_CONFIG` to the invoking user's aqua config, and prepends aqua's bin directory to `$PATH`. Sourced for all root login shells, interactive or not.
-- `/var/root/.zshrc` handoff block (idempotent, marker `# BEGIN managed by terminal-bootstrap (root-handoff)`): repeats the env setup (for non-login interactive shells) and re-execs into `nu -l` when the shell is interactive. Same escape hatches as the regular user handoff (`TERMINAL_BOOTSTRAP_NO_HANDOFF=1`, `TERMINAL_BOOTSTRAP_NU_HANDOFF` guard).
+- Sets `/Users/root`'s `UserShell` to `/bin/zsh` via `dscl . -create /Users/root UserShell /bin/zsh`. macOS ships root with `/bin/sh`, which never sources `.zshrc` and therefore never reaches the nu handoff — so `sudo su` (non-login interactive) would otherwise drop you into `sh`, not nu. zsh is kept as the login shell (rather than setting root's shell directly to nu) because it acts as a one-line trampoline that immediately exec's nu, while leaving a working fallback if nu is ever missing or broken so the root account is never unbootable.
+- `/var/root/.zprofile` env block (idempotent, marker `# BEGIN managed by terminal-bootstrap (root-env)`): exports `XDG_CONFIG_HOME=/var/root/.config` (so nu and starship read the managed config instead of falling back to `/var/root/Library/Application Support/nushell` on macOS), sources Homebrew `shellenv` (auto-detected at `/opt/homebrew` or `/usr/local`), exports `AQUA_GLOBAL_CONFIG` to the invoking user's aqua config, and prepends aqua's bin directory to `$PATH`. Sourced for all root login shells, interactive or not.
+- `/var/root/.zshrc` handoff block (idempotent, marker `# BEGIN managed by terminal-bootstrap (root-handoff)`): repeats the env setup including `XDG_CONFIG_HOME` (for non-login interactive shells like `sudo su`) and re-execs into `nu -l` when the shell is interactive. Same escape hatches as the regular user handoff (`TERMINAL_BOOTSTRAP_NO_HANDOFF=1`, `TERMINAL_BOOTSTRAP_NU_HANDOFF` guard).
 - `/var/root/.config/{nushell,nvim,aquaproj-aqua,mise}` and `/var/root/.config/starship.toml` symlinks → corresponding paths under the invoking user's `~/.config`. Root reads the same nu config, the same LazyVim setup, the same aqua/mise pins, and the same starship prompt. Single source of truth: edits in the user's home apply to both.
+- `/var/root/Library/Application Support/nushell` symlink → `/var/root/.config/nushell` (the same managed config). Mirrors the user-side macOS fallback link so that any root nu session — even one that somehow drops `XDG_CONFIG_HOME` — still resolves the managed config instead of creating a fresh empty one. Existing directories at this path are backed up to `.pre-terminal-bootstrap.<unix-ts>` before the link is created.
 
-With this in place, `sudo -i` lands in nu with the full managed UX. `sudo nvim /etc/foo` works because aqua's stub now resolves with `AQUA_GLOBAL_CONFIG` set. The `vi` alias works because root is in nu, where the alias is defined.
+With this in place, `sudo -i`, `sudo su -`, and `sudo su` all land in nu with the full managed UX (root's shell is zsh, `.zshrc` runs the handoff for interactive sessions, `.zprofile` covers login). `sudo nvim /etc/foo` works because aqua's stub now resolves with `AQUA_GLOBAL_CONFIG` set. The `vi` alias works because root is in nu, where the alias is defined.
 
 The installer builds the root-side script once and dispatches it through a single privileged invocation, so authentication happens once and there are no per-command re-prompts. The dispatch chain is:
 
@@ -148,7 +150,7 @@ If all three fail or sudo isn't installed, the step is skipped with a warn and t
 
 **Security model**: root reuses the *invoking user*'s binaries and config. If the user account is compromised, the attacker can plant a malicious binary in `~/.local/share/aquaproj-aqua/bin/` and the next `sudo -i` will execute it as root. This is harmless on a personal Mac where the user is already a sudoer (the attacker can do the same with `sudo bash`), but on shared Macs where the invoking user is NOT a sudoer this leaks a privilege-escalation path — pass `--skip-root` to disable.
 
-To remove after the fact: delete the two managed blocks from `/var/root/.zprofile` and `/var/root/.zshrc`, and `sudo rm /var/root/.config/{nushell,nvim,aquaproj-aqua,mise,starship.toml}` (these are symlinks; removing them does not touch the source files).
+To remove after the fact: delete the two managed blocks from `/var/root/.zprofile` and `/var/root/.zshrc`, `sudo rm /var/root/.config/{nushell,nvim,aquaproj-aqua,mise,starship.toml}` and `sudo rm "/var/root/Library/Application Support/nushell"` (these are symlinks; removing them does not touch the source files), and revert root's shell with `sudo dscl . -create /Users/root UserShell /bin/sh` if you want the macOS default back.
 
 ## Sync Policy
 

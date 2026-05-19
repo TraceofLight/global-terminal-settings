@@ -266,8 +266,8 @@ install_wezterm_from_apt() {
 
   remove_linuxbrew_wezterm
 
-  if command -v wezterm >/dev/null 2>&1 && wezterm --version >/dev/null 2>&1; then
-    printf 'skip  WezTerm already installed\n'
+  if dpkg -s wezterm-nightly >/dev/null 2>&1; then
+    printf 'skip  WezTerm nightly already installed\n'
     return 0
   fi
 
@@ -278,7 +278,7 @@ install_wezterm_from_apt() {
   run_cmd "Install WezTerm APT signing key" bash -c "curl -fsSL https://apt.fury.io/wez/gpg.key | sudo gpg --yes --dearmor -o '$keyring'"
   run_cmd "Configure WezTerm APT source" bash -c "printf '%s\n' '$source_line' | sudo tee '$source_list' >/dev/null && sudo chmod 644 '$keyring' '$source_list'"
   run_cmd "apt-get update for WezTerm" sudo apt-get update
-  run_cmd "apt-get install wezterm" sudo apt-get install -y wezterm
+  run_cmd "apt-get install wezterm-nightly" sudo apt-get install -y wezterm-nightly
 }
 
 stage_assets() {

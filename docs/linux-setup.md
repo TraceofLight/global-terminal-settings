@@ -4,7 +4,7 @@ This document defines the Linux baseline produced by the `terminal-bootstrap` re
 
 ## Target State
 
-- Terminal: `WezTerm` (native Linux only; WSL defers to the Windows-side WezTerm)
+- Terminal: `WezTerm` nightly channel (native Linux only; WSL defers to the Windows-side WezTerm). The stable release has not been refreshed in a long time, so native Linux installs the `wezterm-nightly` package from WezTerm's APT repository.
 - Default interactive shell: `NuShell`
 - Prompt: `Starship`
 - Navigation: `zoxide`, `fzf`
@@ -61,7 +61,7 @@ Linuxbrew bootstrap packages:
 - `aqua`
 - `mise`
 
-Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available. Cross-platform language runtimes (Java, Python) are declared in [shared/mise/config.toml](../shared/mise/config.toml) and installed by mise after the aqua step. Native Ubuntu Linux installs WezTerm separately from WezTerm's official APT repository rather than Linuxbrew, because the Linuxbrew tap can install an x86-64 WezTerm binary on ARM64 hosts. WSL skips WezTerm because the Windows host owns the terminal UI.
+Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available. Cross-platform language runtimes (Java, Python) are declared in [shared/mise/config.toml](../shared/mise/config.toml) and installed by mise after the aqua step. Native Ubuntu Linux installs the `wezterm-nightly` package from WezTerm's official APT repository rather than Linuxbrew, because the Linuxbrew tap can install an x86-64 WezTerm binary on ARM64 hosts and only tracks stable. The nightly package is preferred because the stable channel has not been refreshed in a long time. WSL skips WezTerm because the Windows host owns the terminal UI.
 
 ### 3. Stage Managed Assets
 

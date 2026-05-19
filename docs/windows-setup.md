@@ -4,7 +4,7 @@ This document defines the Windows baseline produced by the `terminal-bootstrap` 
 
 ## Target State
 
-- Terminal: `WezTerm`
+- Terminal: `WezTerm` (nightly channel — the stable release has not been refreshed in a long time, so Windows pins `wez.wezterm.nightly` via winget)
 - Default interactive shell: `NuShell`
 - Prompt: `Starship`
 - Navigation: `zoxide`, `fzf`
@@ -55,7 +55,7 @@ The package baseline is defined in [windows/packages.psd1](../windows/packages.p
 
 Key packages:
 
-- `WezTerm`
+- `WezTerm` (winget `wez.wezterm.nightly`; no Chocolatey fallback because no official nightly package is published there)
 - `NuShell`
 - `Git`
 - `aqua`

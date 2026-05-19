@@ -525,8 +525,10 @@ persist_root_setup() {
 
   if [[ $DRY_RUN -eq 1 ]]; then
     printf '[dry-run] Build root-side script and execute as root in one shot\n'
+    printf '[dry-run]   set /Users/root UserShell -> /bin/zsh (so the nu handoff actually runs)\n'
     printf '[dry-run]   target: %s/.zprofile (env block), %s/.zshrc (handoff)\n' "$root_home" "$root_home"
     printf '[dry-run]   symlinks: %s/.config/{nushell,nvim,aquaproj-aqua,mise,starship.toml} -> %s\n' "$root_home" "$user_config_dir"
+    printf '[dry-run]   macOS fallback: %s/Library/Application Support/nushell -> %s/.config/nushell\n' "$root_home" "$root_home"
     return 0
   fi
 
@@ -556,6 +558,21 @@ ENV_MARKER_END='$env_marker_end'
 HANDOFF_MARKER_BEGIN='$handoff_marker_begin'
 HANDOFF_MARKER_END='$handoff_marker_end'
 
+# Ensure root's default shell is zsh so the handoff block below actually
+# runs. macOS ships root with UserShell=/bin/sh, which never sources
+# .zshrc and therefore never exec's nu — leaving 'sudo su' stuck in sh.
+# zsh is a one-line trampoline that immediately exec's nu (see .zshrc
+# handoff block). Keeping zsh as the login shell preserves a safety net
+# if nu is ever missing or broken: the user falls back to a working zsh
+# instead of an unbootable root account.
+current_root_shell=\$(dscl . -read /Users/root UserShell 2>/dev/null | awk '{print \$2}')
+if [ "\$current_root_shell" != "/bin/zsh" ]; then
+  dscl . -create /Users/root UserShell /bin/zsh
+  echo "ok    Set /Users/root UserShell to /bin/zsh (was \${current_root_shell:-unset})"
+else
+  echo "skip  /Users/root UserShell already /bin/zsh"
+fi
+
 # env block → /var/root/.zprofile
 if grep -qF "\$ENV_MARKER_BEGIN" "\$ROOT_HOME/.zprofile" 2>/dev/null; then
   echo "skip  \$ROOT_HOME/.zprofile already has root-env block"
@@ -566,6 +583,10 @@ else
 # Reuse \$USER_HOME Homebrew/aqua/mise environment. Sourced for all root
 # login shells (interactive and non-interactive) so brew/aqua-managed CLIs
 # resolve under sudo -i, ssh root@host, etc.
+# XDG_CONFIG_HOME is set first so nu (and starship) read the managed
+# config at \$ROOT_HOME/.config instead of falling back to
+# \$ROOT_HOME/Library/Application Support/nushell on macOS.
+export XDG_CONFIG_HOME="\$ROOT_HOME/.config"
 if [ -x "\$BREW_PREFIX/bin/brew" ]; then
   eval "\\\$(\$BREW_PREFIX/bin/brew shellenv)"
 fi
@@ -591,8 +612,10 @@ else
 
 \$HANDOFF_MARKER_BEGIN
 # Same env as /var/root/.zprofile, repeated here for non-login interactive
-# shells. zsh sources .zprofile only for login shells and .zshrc for
-# interactive shells.
+# shells (e.g. 'sudo su' without '-'). zsh sources .zprofile only for
+# login shells and .zshrc for interactive shells, so both files repeat
+# the env exports.
+export XDG_CONFIG_HOME="\$ROOT_HOME/.config"
 if [ -x "\$BREW_PREFIX/bin/brew" ]; then
   eval "\\\$(\$BREW_PREFIX/bin/brew shellenv)"
 fi
@@ -643,6 +666,27 @@ elif [ -L "\$target" ] || [ -e "\$target" ]; then
 else
   ln -s "\$src" "\$target"
   echo "ok    Symlink \$target -> \$src"
+fi
+
+# Mirror the user-side macOS nushell fallback link for /var/root. If
+# XDG_CONFIG_HOME ever fails to propagate into a root nu session (or a
+# child process drops it), nu otherwise creates a fresh empty config at
+# \$ROOT_HOME/Library/Application Support/nushell — losing aliases,
+# autoload, starship integration, etc. Pointing the fallback path at
+# the managed config guarantees the same UX as the invoking user.
+fallback_src="\$ROOT_HOME/.config/nushell"
+fallback_target="\$ROOT_HOME/Library/Application Support/nushell"
+mkdir -p "\$(dirname "\$fallback_target")"
+if [ -L "\$fallback_target" ] && [ "\$(readlink "\$fallback_target")" = "\$fallback_src" ]; then
+  echo "skip  \$fallback_target already points to managed config"
+else
+  if [ -e "\$fallback_target" ] || [ -L "\$fallback_target" ]; then
+    backup="\$fallback_target.pre-terminal-bootstrap.\$(date +%s)"
+    mv "\$fallback_target" "\$backup"
+    echo "info  Backed up existing \$fallback_target -> \$backup"
+  fi
+  ln -s "\$fallback_src" "\$fallback_target"
+  echo "ok    Symlink \$fallback_target -> \$fallback_src"
 fi
 INNER_SCRIPT
 

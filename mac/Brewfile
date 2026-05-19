@@ -1,4 +1,4 @@
-cask "wezterm"
+cask "wezterm@nightly"
 cask "font-symbols-only-nerd-font"
 
 brew "aqua"
