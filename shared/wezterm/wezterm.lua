@@ -1,10 +1,101 @@
 local wezterm = require("wezterm")
+local act = wezterm.action
 
 local config = wezterm.config_builder()
 local bootstrap_dir = wezterm.home_dir .. "/.config/terminal-bootstrap"
 local function file_exists(path)
   local ok, _, code = os.rename(path, path)
   return ok or code == 13
+end
+
+local function basename(path)
+  return (path:gsub("\\", "/"):match("([^/]+)$") or path):lower()
+end
+
+local function pane_title(pane)
+  local ok, title = pcall(function()
+    return pane:get_title()
+  end)
+  if ok and title then
+    return title
+  end
+  return ""
+end
+
+local function foreground_process(pane)
+  local ok, name = pcall(function()
+    return pane:get_foreground_process_name()
+  end)
+  if ok and name then
+    return basename(name)
+  end
+  return ""
+end
+
+local function is_agent_pane(pane)
+  local process = foreground_process(pane)
+  if process == "codex.exe" or process == "codex" or process == "claude.exe" or process == "claude" then
+    return true
+  end
+
+  local title = pane_title(pane):lower()
+  if title:find("codex", 1, true) or title:find("claude", 1, true) then
+    return true
+  end
+
+  -- Agent CLIs (Codex, Claude Code) render an asterisk marker (U+2733) in the
+  -- pane title while busy. Trust it only alongside a generic host process so
+  -- ordinary shell/editor panes still receive a literal Ctrl+V.
+  local has_agent_marker = pane_title(pane):find("\226\156\179", 1, true) ~= nil
+  return has_agent_marker and (process == "node.exe" or process == "node" or process == "cmd.exe" or process == "")
+end
+
+local function save_clipboard_image_path()
+  if not wezterm.target_triple:find("windows") then
+    return nil
+  end
+
+  local script_path = bootstrap_dir .. "/wezterm/save-clipboard-image.ps1"
+  if not file_exists(script_path) then
+    wezterm.log_warn("clipboard image helper missing: " .. script_path)
+    return nil
+  end
+
+  local success, stdout, stderr = wezterm.run_child_process({
+    "powershell.exe",
+    "-NoProfile",
+    "-Sta",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    script_path,
+  })
+
+  stdout = stdout or ""
+  local path = stdout:match("IMAGE_PATH=([^\r\n]+)")
+  if success and path and path ~= "" then
+    return path
+  end
+
+  if not stdout:find("NO_IMAGE", 1, true) and stderr and stderr ~= "" then
+    wezterm.log_warn("clipboard image helper failed: " .. stderr)
+  end
+  return nil
+end
+
+local function agent_clipboard_paste(window, pane)
+  if not is_agent_pane(pane) then
+    window:perform_action(act.SendKey({ key = "v", mods = "CTRL" }), pane)
+    return
+  end
+
+  local image_path = save_clipboard_image_path()
+  if image_path then
+    pane:send_paste(image_path)
+    return
+  end
+
+  window:perform_action(act.PasteFrom("Clipboard"), pane)
 end
 
 config.adjust_window_size_when_changing_font_size = false
@@ -49,10 +140,11 @@ config.window_padding = {
 }
 
 config.keys = {
-  { key = "c", mods = "CTRL|SHIFT", action = wezterm.action.CopyTo("Clipboard") },
-  { key = "v", mods = "CTRL|SHIFT", action = wezterm.action.PasteFrom("Clipboard") },
-  { key = "d", mods = "ALT|SHIFT", action = wezterm.action.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
-  { key = "D", mods = "ALT|SHIFT", action = wezterm.action.SplitVertical({ domain = "CurrentPaneDomain" }) },
+  { key = "c", mods = "CTRL|SHIFT", action = act.CopyTo("Clipboard") },
+  { key = "v", mods = "CTRL", action = wezterm.action_callback(agent_clipboard_paste) },
+  { key = "v", mods = "CTRL|SHIFT", action = act.PasteFrom("Clipboard") },
+  { key = "d", mods = "ALT|SHIFT", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
+  { key = "D", mods = "ALT|SHIFT", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
 }
 
 if wezterm.target_triple:find("windows") then

@@ -2,6 +2,7 @@
     Packages = @(
         @{
             Name = 'WezTerm'
+            DetectPath = '%LOCALAPPDATA%\Programs\WezTerm-nightly\wezterm.exe'
             DetectCommand = 'wezterm'
             WingetId = 'wez.wezterm.nightly'
         }

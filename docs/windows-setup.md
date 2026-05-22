@@ -63,6 +63,26 @@ Key packages:
 
 Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available. Cross-platform language runtimes (Java, Python) are declared in [shared/mise/config.toml](../shared/mise/config.toml) and installed by mise after the aqua step.
 
+#### WezTerm: nightly only
+
+The baseline pins WezTerm to `wez.wezterm.nightly`. The `wez.wezterm` stable manifest in `winget-pkgs` has been frozen at `20240203-110809-5046fc22` since February 2024 while active development continues on the nightly channel, so installing stable means running a build that is years behind on shutdown, GPU teardown, and Wayland/DirectComposition fixes. The Chocolatey fallback is intentionally omitted for WezTerm because `wezterm`, `wezterm.install`, and `wezterm.portable` on Chocolatey all track the same frozen stable build.
+
+The nightly winget package wraps a per-machine NSIS installer that requires UAC elevation. When `install.ps1` runs in a non-elevated shell, the silent install will fail with exit code 5 (`설치 관리자가 관리자 권한으로 실행을 요청합니다`). Either run the installer from an elevated `pwsh` session, or install WezTerm manually from the portable archive before running `install.ps1`:
+
+```powershell
+# Manual portable install (no admin required)
+$zip = "$env:TEMP\WezTerm-windows-nightly.zip"
+Invoke-WebRequest -Uri 'https://github.com/wezterm/wezterm/releases/download/nightly/WezTerm-windows-nightly.zip' -OutFile $zip -UseBasicParsing
+$stage = "$env:TEMP\wezterm-nightly-stage"
+Expand-Archive -Path $zip -DestinationPath $stage -Force
+$dest = "$env:LOCALAPPDATA\Programs\WezTerm-nightly"
+if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+New-Item -ItemType Directory -Path $dest -Force | Out-Null
+Get-ChildItem (Get-ChildItem $stage -Directory | Select-Object -First 1).FullName -Force | Move-Item -Destination $dest -Force
+```
+
+The portable archive on GitHub Releases ships a `.sha256` companion file; verify it before extracting on machines where supply-chain integrity matters. After the portable install, `install.ps1` detects the binary through `DetectPath = '%LOCALAPPDATA%\Programs\WezTerm-nightly\wezterm.exe'` and skips the winget step.
+
 ### 3. Stage Managed Assets
 
 Managed assets are staged into `%USERPROFILE%\.config\terminal-bootstrap`.
