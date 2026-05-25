@@ -15,4 +15,6 @@ Use `archive/` for historical plans that have already been executed. Archived fi
 
 - [`aqua-core-cli-split-design.md`](aqua-core-cli-split-design.md) - design for moving cross-platform daily CLI tooling to aqua while keeping OS installers focused on bootstrap responsibilities.
 - [`aqua-core-cli-split.md`](aqua-core-cli-split.md) - implementation plan for the aqua core CLI split.
+- [`windows-nvim-cache-design.md`](windows-nvim-cache-design.md) - design for avoiding Windows Neovim Lua cache path length failures with aqua-managed Neovim.
+- [`windows-nvim-cache.md`](windows-nvim-cache.md) - implementation plan for the Windows Neovim aqua root and cache path defaults.
 - [`archive/`](archive/) - historical plans and designs.

@@ -38,6 +38,29 @@ if (($nu.os-info.name | str downcase) == "macos") {
 }
 
 if (($nu.os-info.name | str downcase) == "windows") {
+  let windows_system_drive = ($env.SystemDrive? | default "C:")
+  let windows_aqua_root = if ($windows_system_drive | str ends-with ":") {
+    $"($windows_system_drive)\\.aqua"
+  } else {
+    $windows_system_drive | path join ".aqua"
+  }
+
+  if (($env.AQUA_ROOT_DIR? | default "" | is-empty) and ($windows_aqua_root | is-not-empty)) {
+    $env.AQUA_ROOT_DIR = $windows_aqua_root
+  }
+
+  let windows_cache_home = if ($env.HOME? | is-not-empty) {
+    $env.HOME | path join ".cache"
+  } else if ($env.USERPROFILE? | is-not-empty) {
+    $env.USERPROFILE | path join ".cache"
+  } else {
+    null
+  }
+
+  if (($env.XDG_CACHE_HOME? | default "" | is-empty) and ($windows_cache_home | is-not-empty)) {
+    $env.XDG_CACHE_HOME = $windows_cache_home
+  }
+
   let windows_bootstrap_paths = [
     (if ($env.APPDATA? | is-not-empty) { $env.APPDATA | path join "npm" })
     (if ($env.HOME? | is-not-empty) { $env.HOME | path join ".local" "bin" })

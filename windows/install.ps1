@@ -319,6 +319,30 @@ function Set-UserEnvironmentDefaults {
         }
     }
 
+    $desiredXdgCacheHome = Join-Path $HOME '.cache'
+    $currentXdgCacheHome = [Environment]::GetEnvironmentVariable('XDG_CACHE_HOME', 'User')
+    if ([string]::IsNullOrWhiteSpace($currentXdgCacheHome)) {
+        Invoke-Action "Set user XDG_CACHE_HOME to $desiredXdgCacheHome" {
+            [Environment]::SetEnvironmentVariable('XDG_CACHE_HOME', $desiredXdgCacheHome, 'User')
+        }
+        $env:XDG_CACHE_HOME = $desiredXdgCacheHome
+    } else {
+        $env:XDG_CACHE_HOME = $currentXdgCacheHome
+    }
+
+    $desiredAquaRootDir = Join-Path $env:SystemDrive '.aqua'
+    $currentAquaRootDir = [Environment]::GetEnvironmentVariable('AQUA_ROOT_DIR', 'User')
+    if ([string]::IsNullOrWhiteSpace($currentAquaRootDir)) {
+        Invoke-Action "Set user AQUA_ROOT_DIR to $desiredAquaRootDir" {
+            [Environment]::SetEnvironmentVariable('AQUA_ROOT_DIR', $desiredAquaRootDir, 'User')
+        }
+        $env:AQUA_ROOT_DIR = $desiredAquaRootDir
+    } else {
+        $env:AQUA_ROOT_DIR = $currentAquaRootDir
+    }
+
+    Ensure-Directory $env:AQUA_ROOT_DIR
+
     $pathEntriesToAdd = @(
         (Join-Path $env:APPDATA 'npm')
         (Join-Path $HOME '.local\bin')
