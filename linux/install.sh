@@ -6,6 +6,7 @@ DRY_RUN=0
 SKIP_PACKAGES=0
 SKIP_CONFIGS=0
 TARGET=""
+HEADLESS=0
 INCLUDE_ROOT=1  # default on; install.sh prompts for sudo up front so a single
                 # `bash install.sh` invocation wires both user and root in one
                 # pass. Use --skip-root to disable on machines where the
@@ -30,6 +31,9 @@ while [[ $# -gt 0 ]]; do
       TARGET="${2:?missing value for --target}"
       shift
       ;;
+    --headless)
+      HEADLESS=1
+      ;;
     --include-root)
       # Kept for backward compatibility — root wiring is on by default.
       INCLUDE_ROOT=1
@@ -39,7 +43,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --help|-h)
       cat <<'EOF'
-Usage: ./install.sh [--dry-run] [--sync-mode auto|link|copy] [--skip-packages] [--skip-configs] [--target linux|wsl] [--skip-root]
+Usage: ./install.sh [--dry-run] [--sync-mode auto|link|copy] [--skip-packages] [--skip-configs] [--target linux|wsl] [--headless] [--skip-root]
+
+  --headless      Server/SSH install mode for native Linux. Installs the
+                  terminal CLI baseline and shell handoff, but skips WezTerm
+                  package install, WezTerm config wiring, and font staging.
 
   --skip-root     Disable the default root wiring. By default install.sh
                   also wires ~root with the same Linuxbrew PATH, aqua/mise
@@ -115,6 +123,42 @@ run_cmd() {
 
   printf '>> %s\n' "$description"
   "$@"
+}
+
+run_as_root() {
+  if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+    "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    printf 'error sudo not available; cannot run privileged command: %s\n' "$*" >&2
+    return 1
+  fi
+}
+
+install_gui_assets() {
+  [[ "$TARGET" == "linux" && $HEADLESS -eq 0 ]]
+}
+
+run_as_linuxbrew_user() {
+  if command -v runuser >/dev/null 2>&1; then
+    runuser -u linuxbrew -- "$@"
+  else
+    local quoted=""
+    local arg
+    for arg in "$@"; do
+      quoted+=" $(printf '%q' "$arg")"
+    done
+    su -s /bin/bash linuxbrew -c "${quoted# }"
+  fi
+}
+
+run_brew() {
+  if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+    run_as_linuxbrew_user bash -lc 'cd /tmp && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew "$@"' bash "$@"
+  else
+    brew "$@"
+  fi
 }
 
 ensure_dir() {
@@ -205,8 +249,8 @@ ensure_apt_dependencies() {
     return 0
   fi
 
-  run_cmd "apt-get update" sudo apt-get update
-  run_cmd "apt-get install ${missing[*]}" sudo apt-get install -y "${missing[@]}"
+  run_cmd "apt-get update" run_as_root apt-get update
+  run_cmd "apt-get install ${missing[*]}" run_as_root apt-get install -y "${missing[@]}"
 }
 
 ensure_linuxbrew() {
@@ -215,6 +259,9 @@ ensure_linuxbrew() {
   fi
 
   if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+    if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+      run_as_root chmod 755 /home/linuxbrew
+    fi
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
     return 0
   fi
@@ -224,9 +271,22 @@ ensure_linuxbrew() {
     return 0
   fi
 
-  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+    if ! getent passwd linuxbrew >/dev/null 2>&1; then
+      run_as_root useradd -m -s /bin/bash linuxbrew
+    fi
+    run_as_root mkdir -p /home/linuxbrew
+    run_as_root chown -R linuxbrew:linuxbrew /home/linuxbrew
+    run_as_root chmod 755 /home/linuxbrew
+    run_as_linuxbrew_user bash -lc 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+  else
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  fi
 
   if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+    if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+      run_as_root chmod 755 /home/linuxbrew
+    fi
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
   fi
 }
@@ -237,23 +297,41 @@ install_packages() {
 
   local brewfile="$BOOTSTRAP_ROOT/linux/Brewfile"
 
-  if [[ "$TARGET" == "linux" ]]; then
+  if install_gui_assets; then
     install_wezterm_from_apt
+  elif [[ "$TARGET" == "linux" && $HEADLESS -eq 1 ]]; then
+    printf 'skip  WezTerm package install (headless Linux target)\n'
   fi
 
-  run_cmd "brew bundle --file $brewfile" brew bundle --file "$brewfile"
+  local brewfile_for_run="$brewfile"
+  if [[ ${EUID:-$(id -u)} -eq 0 && $DRY_RUN -eq 0 ]]; then
+    brewfile_for_run="$(mktemp /tmp/terminal-bootstrap-brewfile.XXXXXX)"
+    cp "$brewfile" "$brewfile_for_run"
+    chmod 644 "$brewfile_for_run"
+  fi
+
+  run_cmd "brew bundle --file $brewfile" run_brew bundle --file "$brewfile_for_run"
+
+  if [[ "$brewfile_for_run" != "$brewfile" ]]; then
+    rm -f "$brewfile_for_run"
+  fi
 }
 
 remove_linuxbrew_wezterm() {
   command -v brew >/dev/null 2>&1 || return 0
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Check for and remove legacy Linuxbrew WezTerm formulae\n'
+    return 0
+  fi
 
   local formulas=(
     "wezterm/wezterm-linuxbrew/wezterm"
     "wezterm"
   )
   for formula in "${formulas[@]}"; do
-    if brew list --formula "$formula" >/dev/null 2>&1; then
-      run_cmd "Remove Linuxbrew WezTerm formula $formula" brew uninstall --formula "$formula"
+    if run_brew list --formula "$formula" >/dev/null 2>&1; then
+      run_cmd "Remove Linuxbrew WezTerm formula $formula" run_brew uninstall --formula "$formula"
     fi
   done
 }
@@ -275,19 +353,30 @@ install_wezterm_from_apt() {
   local source_list="/etc/apt/sources.list.d/wezterm.list"
   local source_line="deb [signed-by=$keyring] https://apt.fury.io/wez/ * *"
 
-  run_cmd "Install WezTerm APT signing key" bash -c "curl -fsSL https://apt.fury.io/wez/gpg.key | sudo gpg --yes --dearmor -o '$keyring'"
-  run_cmd "Configure WezTerm APT source" bash -c "printf '%s\n' '$source_line' | sudo tee '$source_list' >/dev/null && sudo chmod 644 '$keyring' '$source_list'"
-  run_cmd "apt-get update for WezTerm" sudo apt-get update
-  run_cmd "apt-get install wezterm-nightly" sudo apt-get install -y wezterm-nightly
+  install_wezterm_key() {
+    curl -fsSL https://apt.fury.io/wez/gpg.key | run_as_root gpg --yes --dearmor -o "$keyring"
+  }
+
+  configure_wezterm_source() {
+    printf '%s\n' "$source_line" | run_as_root tee "$source_list" >/dev/null
+    run_as_root chmod 644 "$keyring" "$source_list"
+  }
+
+  run_cmd "Install WezTerm APT signing key" install_wezterm_key
+  run_cmd "Configure WezTerm APT source" configure_wezterm_source
+  run_cmd "apt-get update for WezTerm" run_as_root apt-get update
+  run_cmd "apt-get install wezterm-nightly" run_as_root apt-get install -y wezterm-nightly
 }
 
 stage_assets() {
   log_stage 3 "Stage Managed Assets"
 
   sync_target "$SOURCE_ROOT/aqua" "$INSTALL_ROOT/aqua"
-  if [[ "$TARGET" == "linux" ]]; then
+  if install_gui_assets; then
     sync_target "$SOURCE_ROOT/fonts" "$INSTALL_ROOT/fonts"
     sync_target "$SOURCE_ROOT/wezterm" "$INSTALL_ROOT/wezterm"
+  elif [[ "$TARGET" == "linux" && $HEADLESS -eq 1 ]]; then
+    printf 'skip  font and WezTerm asset staging (headless Linux target)\n'
   fi
   sync_target "$SOURCE_ROOT/mise" "$INSTALL_ROOT/mise"
   sync_target "$SOURCE_ROOT/nushell" "$INSTALL_ROOT/nushell"
@@ -301,9 +390,11 @@ sync_app_configs() {
 
   ensure_dir "$nushell_root/autoload"
 
-  if [[ "$TARGET" == "linux" ]]; then
+  if install_gui_assets; then
     ensure_dir "$CONFIG_ROOT/wezterm"
     sync_target "$INSTALL_ROOT/wezterm/wezterm.lua" "$HOME/.wezterm.lua"
+  elif [[ "$TARGET" == "linux" && $HEADLESS -eq 1 ]]; then
+    printf 'skip  WezTerm wiring (headless Linux target)\n'
   else
     printf 'skip  WezTerm wiring (WSL target; Windows-side installer manages wezterm.lua)\n'
   fi
@@ -548,8 +639,38 @@ persist_shell_handoff_blocks() {
   fi
 }
 
+write_root_managed_block() {
+  local target="$1"
+  local begin_marker="$2"
+  local end_marker="$3"
+  local description="$4"
+  local block
+  block="$(cat)"
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Replace %s in %s\n' "$description" "$target"
+    return 0
+  fi
+
+  local tmp
+  tmp="$(mktemp)"
+
+  if run_as_root test -f "$target"; then
+    run_as_root awk -v begin="$begin_marker" -v end="$end_marker" '
+      $0 == begin { skip = 1; next }
+      $0 == end { skip = 0; next }
+      !skip { print }
+    ' "$target" > "$tmp"
+  fi
+
+  printf '\n%s\n' "$block" >> "$tmp"
+  run_as_root install -m 0644 "$tmp" "$target"
+  rm -f "$tmp"
+  printf 'ok    Replaced %s in %s\n' "$description" "$target"
+}
+
 persist_root_setup() {
-  if ! command -v sudo >/dev/null 2>&1; then
+  if [[ ${EUID:-$(id -u)} -ne 0 ]] && ! command -v sudo >/dev/null 2>&1; then
     printf 'warn  sudo not available; cannot wire root (--include-root skipped)\n' >&2
     return 0
   fi
@@ -558,6 +679,8 @@ persist_root_setup() {
 
   local user_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
   local user_aqua_bin="$HOME/.local/share/aquaproj-aqua/bin"
+  local user_mise_data="$HOME/.local/share/mise"
+  local user_mise_shims="$user_mise_data/shims"
   local user_home="$HOME"
 
   local env_marker_begin="# BEGIN managed by terminal-bootstrap (root-env)"
@@ -565,14 +688,7 @@ persist_root_setup() {
   local handoff_marker_begin="# BEGIN managed by terminal-bootstrap (root-handoff)"
   local handoff_marker_end="# END managed by terminal-bootstrap (root-handoff)"
 
-  # /root/.profile env block (login shell PATH for non-interactive too)
-  if sudo grep -qF "$env_marker_begin" /root/.profile 2>/dev/null; then
-    printf 'skip  /root/.profile already has root-env block\n'
-  elif [[ $DRY_RUN -eq 1 ]]; then
-    printf '[dry-run] Append root-env block to /root/.profile\n'
-  else
-    sudo tee -a /root/.profile >/dev/null <<EOF
-
+  write_root_managed_block /root/.profile "$env_marker_begin" "$env_marker_end" "root-env block" <<EOF
 $env_marker_begin
 # Reuse $user_home Linuxbrew/aqua/mise environment. Sourced for all root
 # login shells (interactive and non-interactive) so brew/aqua-managed CLIs
@@ -583,25 +699,25 @@ fi
 if [ -f "$user_config_dir/aquaproj-aqua/aqua.yaml" ]; then
   export AQUA_GLOBAL_CONFIG="$user_config_dir/aquaproj-aqua/aqua.yaml"
 fi
+if [ -d "$user_mise_data" ]; then
+  export MISE_DATA_DIR="$user_mise_data"
+fi
 if [ -d "$user_aqua_bin" ]; then
   case ":\$PATH:" in
     *":$user_aqua_bin:"*) ;;
     *) export PATH="$user_aqua_bin:\$PATH" ;;
   esac
 fi
+if [ -d "$user_mise_shims" ]; then
+  case ":\$PATH:" in
+    *":$user_mise_shims:"*) ;;
+    *) export PATH="$user_mise_shims:\$PATH" ;;
+  esac
+fi
 $env_marker_end
 EOF
-    printf 'ok    Added root-env block to /root/.profile\n'
-  fi
 
-  # /root/.bashrc handoff block (interactive root → nu, with bash escape hatch)
-  if sudo grep -qF "$handoff_marker_begin" /root/.bashrc 2>/dev/null; then
-    printf 'skip  /root/.bashrc already has root-handoff block\n'
-  elif [[ $DRY_RUN -eq 1 ]]; then
-    printf '[dry-run] Append root-handoff block to /root/.bashrc\n'
-  else
-    sudo tee -a /root/.bashrc >/dev/null <<EOF
-
+  write_root_managed_block /root/.bashrc "$handoff_marker_begin" "$handoff_marker_end" "root-handoff block" <<EOF
 $handoff_marker_begin
 # Same env as /root/.profile, repeated here for non-login interactive shells
 # (ubuntu .bashrc early-returns for non-interactive, so this also won't run
@@ -612,10 +728,19 @@ fi
 if [ -f "$user_config_dir/aquaproj-aqua/aqua.yaml" ]; then
   export AQUA_GLOBAL_CONFIG="$user_config_dir/aquaproj-aqua/aqua.yaml"
 fi
+if [ -d "$user_mise_data" ]; then
+  export MISE_DATA_DIR="$user_mise_data"
+fi
 if [ -d "$user_aqua_bin" ]; then
   case ":\$PATH:" in
     *":$user_aqua_bin:"*) ;;
     *) export PATH="$user_aqua_bin:\$PATH" ;;
+  esac
+fi
+if [ -d "$user_mise_shims" ]; then
+  case ":\$PATH:" in
+    *":$user_mise_shims:"*) ;;
+    *) export PATH="$user_mise_shims:\$PATH" ;;
   esac
 fi
 
@@ -627,14 +752,12 @@ if [[ \$- == *i* ]] && [ -z "\${TERMINAL_BOOTSTRAP_NO_HANDOFF:-}" ] && [ -z "\${
 fi
 $handoff_marker_end
 EOF
-    printf 'ok    Added root-handoff block to /root/.bashrc\n'
-  fi
 
   # /root/.config symlinks → invoking user's managed config (single source of truth)
   if [[ $DRY_RUN -eq 1 ]]; then
     printf '[dry-run] Create /root/.config and symlink to %s\n' "$user_config_dir"
   else
-    sudo mkdir -p /root/.config
+    run_as_root mkdir -p /root/.config
 
     local sub src target
     for sub in nushell nvim aquaproj-aqua mise; do
@@ -644,10 +767,10 @@ EOF
         printf 'warn  source %s missing; skipping symlink for %s\n' "$src" "$sub" >&2
         continue
       fi
-      if sudo test -L "$target" || sudo test -e "$target"; then
+      if run_as_root test -L "$target" || run_as_root test -e "$target"; then
         printf 'skip  %s already exists\n' "$target"
       else
-        sudo ln -s "$src" "$target"
+        run_as_root ln -s "$src" "$target"
         printf 'ok    Symlink %s -> %s\n' "$target" "$src"
       fi
     done
@@ -657,11 +780,24 @@ EOF
     target="/root/.config/starship.toml"
     if [ ! -f "$src" ]; then
       printf 'warn  source %s missing; skipping starship symlink\n' "$src" >&2
-    elif sudo test -L "$target" || sudo test -e "$target"; then
+    elif run_as_root test -L "$target" || run_as_root test -e "$target"; then
       printf 'skip  %s already exists\n' "$target"
     else
-      sudo ln -s "$src" "$target"
+      run_as_root ln -s "$src" "$target"
       printf 'ok    Symlink %s -> %s\n' "$target" "$src"
+    fi
+  fi
+
+  local mise_cmd
+  mise_cmd="$(command -v mise 2>/dev/null || true)"
+  local mise_config="$user_config_dir/mise/config.toml"
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '[dry-run] Trust mise config for root with MISE_DATA_DIR=%s\n' "$user_mise_data"
+  elif [[ -n "$mise_cmd" && -f "$mise_config" && -d "$user_mise_data" ]]; then
+    if run_as_root env MISE_DATA_DIR="$user_mise_data" "$mise_cmd" trust "$mise_config"; then
+      printf 'ok    Trusted mise config for root with MISE_DATA_DIR=%s\n' "$user_mise_data"
+    else
+      printf 'warn  mise trust for root failed; root runtimes may prompt on first use\n' >&2
     fi
   fi
 }
@@ -846,6 +982,8 @@ sync_nvim_config() {
 printf 'terminal-bootstrap linux installer\n'
 if [[ "$TARGET" == "wsl" ]]; then
   printf 'Mode: wsl\n'
+elif [[ $HEADLESS -eq 1 ]]; then
+  printf 'Mode: headless-linux\n'
 else
   printf 'Mode: native-linux\n'
 fi
@@ -879,7 +1017,10 @@ fi
 #      install, so non-sudoer / non-TTY contexts still get a working
 #      user-level setup. (Use --skip-root for explicit opt-out.)
 if [[ $INCLUDE_ROOT -eq 1 ]]; then
-  if ! command -v sudo >/dev/null 2>&1; then
+  if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+    printf 'skip  root wiring (installer is already running as root)\n'
+    INCLUDE_ROOT=0
+  elif ! command -v sudo >/dev/null 2>&1; then
     printf 'warn  sudo not available; skipping root wiring\n' >&2
     INCLUDE_ROOT=0
   elif [[ $DRY_RUN -eq 0 ]]; then
@@ -907,6 +1048,12 @@ if [[ "$TARGET" == "wsl" ]]; then
     printf 'Run bash ./linux/install.sh to apply the WSL baseline. Then on the Windows host, run the Windows installer so wezterm.lua registers the WSL Ubuntu domain, and pick "WSL Ubuntu (nu)" from the WezTerm launch menu (Ctrl+Shift+Space) to enter the WSL nu tab.\n'
   else
     printf 'On the Windows host, run the Windows installer to register the WSL Ubuntu domain in wezterm.lua, then pick "WSL Ubuntu (nu)" from the WezTerm launch menu (Ctrl+Shift+Space) to enter the WSL nu tab.\n'
+  fi
+elif [[ $HEADLESS -eq 1 ]]; then
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf 'Run bash ./linux/install.sh --headless to apply the SSH/server baseline, then open a new SSH session to verify the NuShell entrypoint.\n'
+  else
+    printf 'Open a new SSH session to verify the NuShell entrypoint.\n'
   fi
 else
   if [[ $DRY_RUN -eq 1 ]]; then

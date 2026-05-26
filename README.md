@@ -1,6 +1,6 @@
 # Global Terminal Settings
 
-This repository bootstraps a shared `WezTerm + NuShell + aqua-managed CLI + mise-managed runtimes + Neovim/LazyVim` environment across Windows, macOS, native Ubuntu Linux, and WSL Ubuntu.
+This repository bootstraps a shared `WezTerm + NuShell + aqua-managed CLI + mise-managed runtimes + Neovim/LazyVim` environment across Windows, macOS, native Ubuntu Linux, WSL Ubuntu, and SSH-only Linux servers.
 
 ![main_preview](./docs/main_preview.png)
 
@@ -101,7 +101,7 @@ The shared `WezTerm + NuShell` baseline disables `shell_integration.osc133` for 
 
 ## Shared Installation Stages
 
-Windows, macOS, and Linux (native and WSL) use the same eight installation stages.
+Windows, macOS, and Linux (desktop, WSL, and headless server) use the same eight installation stages.
 
 1. Package manager readiness
 2. Core packages
@@ -116,10 +116,11 @@ Only the concrete commands and package sources differ.
 
 - Windows: `winget` first, `choco` only when already installed and the package allows fallback
 - macOS: `brew`
-- Linux (native and WSL Ubuntu): `apt` for Linuxbrew bootstrap dependencies, then `brew` for the bootstrap baseline
+- Linux (native Ubuntu/Debian desktop, WSL Ubuntu, and headless Debian-family servers): `apt` for Linuxbrew bootstrap dependencies, then `brew` for the bootstrap baseline
 - `aqua` manages daily cross-platform CLIs after the OS bootstrap is ready
 - `mise` manages cross-platform language runtimes (Java, Python, etc.); the shared pinned set lives in `shared/mise/config.toml`
 - WSL defers font and WezTerm deployment to the Windows host; the Windows installer registers a `wsl_domains` entry so WezTerm can enter the WSL `nu` session directly
+- Headless Linux server installs use `linux/install.sh --headless` to skip WezTerm and font deployment while keeping the CLI, NuShell, aqua, mise, Neovim, and optional root shell wiring
 - `claude` and `openclaude` themselves remain external prerequisites; this repo only wires shell integration when the command is already available
 
 ## Entry Points

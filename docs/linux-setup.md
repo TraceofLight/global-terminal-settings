@@ -1,10 +1,10 @@
 # Linux Setup
 
-This document defines the Linux baseline produced by the `terminal-bootstrap` repository. It covers both native Ubuntu and WSL Ubuntu. The WSL-specific differences are listed in the final section.
+This document defines the Linux baseline produced by the `terminal-bootstrap` repository. It covers native Ubuntu/Debian-style Linux, SSH-only headless servers, and WSL Ubuntu. The WSL-specific differences are listed in the final section.
 
 ## Target State
 
-- Terminal: `WezTerm` nightly channel (native Linux only; WSL defers to the Windows-side WezTerm). The stable release has not been refreshed in a long time, so native Linux installs the `wezterm-nightly` package from WezTerm's APT repository.
+- Terminal: `WezTerm` nightly channel (native Linux desktop only; WSL defers to the Windows-side WezTerm, and `--headless` skips GUI terminal deployment). The stable release has not been refreshed in a long time, so native Linux desktop installs the `wezterm-nightly` package from WezTerm's APT repository.
 - Default interactive shell: `NuShell`
 - Prompt: `Starship`
 - Navigation: `zoxide`, `fzf`
@@ -32,6 +32,12 @@ Apply the baseline:
 bash ./linux/install.sh
 ```
 
+Apply the SSH/headless server baseline:
+
+```bash
+bash ./linux/install.sh --headless
+```
+
 Primary options:
 
 - `--dry-run`: print the planned actions without modifying the system
@@ -39,16 +45,17 @@ Primary options:
 - `--skip-packages`: skip package installation
 - `--skip-configs`: skip asset staging and app configuration deployment
 - `--target linux|wsl`: override the auto-detected target
+- `--headless`: server/SSH install mode for native Linux; skips WezTerm package install, WezTerm config wiring, and font staging
 - `--skip-root`: disable the default root wiring (see "Root environment" section below). Use on machines where the invoking user is not a sudoer, or when sudo isn't available
 - `--include-root`: kept for backward compatibility; root wiring is on by default, so this flag is a no-op
 
-The installer auto-detects WSL via `$WSL_DISTRO_NAME` and the `microsoft` marker in `/proc/version`. The detected target is printed as `Mode: native-linux` or `Mode: wsl` at start.
+The installer auto-detects WSL via `$WSL_DISTRO_NAME` and the `microsoft` marker in `/proc/version`. The detected target is printed as `Mode: native-linux`, `Mode: headless-linux`, or `Mode: wsl` at start.
 
 ## Install Flow
 
 ### 1. Package Manager Readiness
 
-The installer first installs the minimum apt dependencies that Linuxbrew and the WezTerm APT repository require (`build-essential`, `ca-certificates`, `curl`, `file`, `git`, `gpg`, `procps`) and then bootstraps Linuxbrew at `/home/linuxbrew/.linuxbrew`. Bootstrap binaries are resolved through Linuxbrew's `bin` directories, which the shared `env.nu` adds to `$env.PATH` for NuShell sessions. Daily cross-platform CLIs are managed by aqua after bootstrap.
+The installer first installs the minimum apt dependencies that Linuxbrew and the WezTerm APT repository require (`build-essential`, `ca-certificates`, `curl`, `file`, `git`, `gpg`, `procps`) and then bootstraps Linuxbrew at `/home/linuxbrew/.linuxbrew`. When the installer itself is run as root, Homebrew is installed and invoked through a dedicated `linuxbrew` user because Homebrew refuses to run as root. Bootstrap binaries are resolved through Linuxbrew's `bin` directories, which the shared `env.nu` adds to `$env.PATH` for NuShell sessions. Daily cross-platform CLIs are managed by aqua after bootstrap.
 
 ### 2. Core Packages
 
@@ -61,13 +68,13 @@ Linuxbrew bootstrap packages:
 - `aqua`
 - `mise`
 
-Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available. Cross-platform language runtimes (Java, Python) are declared in [shared/mise/config.toml](../shared/mise/config.toml) and installed by mise after the aqua step. Native Ubuntu Linux installs the `wezterm-nightly` package from WezTerm's official APT repository rather than Linuxbrew, because the Linuxbrew tap can install an x86-64 WezTerm binary on ARM64 hosts and only tracks stable. The nightly package is preferred because the stable channel has not been refreshed in a long time. WSL skips WezTerm because the Windows host owns the terminal UI.
+Daily cross-platform CLIs are declared in [shared/aqua/aqua.yaml](../shared/aqua/aqua.yaml) and installed by aqua after the bootstrap packages are available. Cross-platform language runtimes (Java, Python) are declared in [shared/mise/config.toml](../shared/mise/config.toml) and installed by mise after the aqua step. Native Ubuntu/Debian-style desktop Linux installs the `wezterm-nightly` package from WezTerm's official APT repository rather than Linuxbrew, because the Linuxbrew tap can install an x86-64 WezTerm binary on ARM64 hosts and only tracks stable. The nightly package is preferred because the stable channel has not been refreshed in a long time. WSL and `--headless` skip WezTerm because another client owns the terminal UI.
 
 ### 3. Stage Managed Assets
 
 Managed assets are staged into `~/.config/terminal-bootstrap`.
 
-Native Linux stages:
+Native Linux desktop stages:
 
 - `fonts/`
 - `aqua/`
@@ -85,11 +92,21 @@ WSL stages:
 - `starship/`
 - `nvim/`
 
+Headless Linux server stages:
+
+- `nushell/`
+- `aqua/`
+- `mise/`
+- `starship/`
+- `nvim/`
+
 ### 4. Wire WezTerm
 
-Native Linux: `shared/wezterm/wezterm.lua` is copied to `~/.wezterm.lua`, `shared/starship/starship.toml` is copied to `~/.config/starship.toml`, `shared/aqua/aqua.yaml` is copied to `~/.config/aquaproj-aqua/aqua.yaml`, and `shared/mise/config.toml` is copied to `~/.config/mise/config.toml`.
+Native Linux desktop: `shared/wezterm/wezterm.lua` is copied to `~/.wezterm.lua`, `shared/starship/starship.toml` is copied to `~/.config/starship.toml`, `shared/aqua/aqua.yaml` is copied to `~/.config/aquaproj-aqua/aqua.yaml`, and `shared/mise/config.toml` is copied to `~/.config/mise/config.toml`.
 
 WSL: `shared/starship/starship.toml`, `shared/aqua/aqua.yaml`, and `shared/mise/config.toml` are copied. The Windows-side installer manages `wezterm.lua` and registers the WSL Ubuntu domain. See the WSL Notes section below.
+
+Headless Linux server: `shared/starship/starship.toml`, `shared/aqua/aqua.yaml`, and `shared/mise/config.toml` are copied. WezTerm and font wiring are skipped.
 
 ### 5. Wire NuShell
 
@@ -136,6 +153,13 @@ WSL minimum verification:
 - Inside the WSL tab, the Starship prompt renders and aqua-managed baseline CLIs run
 - If `claude` or `openclaude` is installed inside WSL, the matching NuShell extern layer loads
 
+Headless Linux server minimum verification:
+
+- A new SSH session hands off into NuShell
+- The Starship prompt renders correctly
+- `aqua`, `git`, `nvim`, and the aqua-managed baseline CLIs run successfully
+- `python` and `java` resolve through the shared mise shims after `mise install`
+
 ## WSL Notes
 
 WSL is an intentionally reduced install. The Windows host runs WezTerm and owns font rendering, window chrome, and the `wsl_domains` entry. The WSL installer therefore skips `shared/fonts/` and `shared/wezterm/wezterm.lua` and defers the WezTerm wiring.
@@ -181,15 +205,17 @@ The installer wires `~root` alongside the invoking user by default. On servers w
 
 The default behavior plugs all three:
 
-- `/root/.profile` env block (idempotent, marker `# BEGIN managed by terminal-bootstrap (root-env)`): sources Linuxbrew `shellenv`, exports `AQUA_GLOBAL_CONFIG` to the invoking user's aqua config, and prepends aqua's bin directory to `$PATH`. Effective for all root login shells, interactive or not (e.g. `ssh root@host -- bash -lc "..."`).
-- `/root/.bashrc` handoff block (idempotent, marker `# BEGIN managed by terminal-bootstrap (root-handoff)`): repeats the env setup (for non-login interactive shells) and re-execs into `nu -l` when the shell is interactive. Same escape hatches as the regular user handoff (`TERMINAL_BOOTSTRAP_NO_HANDOFF=1`, `TERMINAL_BOOTSTRAP_NU_HANDOFF` guard).
+- `/root/.profile` env block (managed by marker `# BEGIN managed by terminal-bootstrap (root-env)`): sources Linuxbrew `shellenv`, exports `AQUA_GLOBAL_CONFIG` to the invoking user's aqua config, exports `MISE_DATA_DIR` to the invoking user's mise data directory, and prepends aqua's bin directory and mise's shim directory to `$PATH`. Effective for all root login shells, interactive or not (e.g. `ssh root@host -- bash -lc "..."`).
+- `/root/.bashrc` handoff block (managed by marker `# BEGIN managed by terminal-bootstrap (root-handoff)`): repeats the env setup (for non-login interactive shells) and re-execs into `nu -l` when the shell is interactive. Same escape hatches as the regular user handoff (`TERMINAL_BOOTSTRAP_NO_HANDOFF=1`, `TERMINAL_BOOTSTRAP_NU_HANDOFF` guard).
 - `/root/.config/{nushell,nvim,aquaproj-aqua,mise}` and `/root/.config/starship.toml` symlinks → corresponding paths under the invoking user's `~/.config`. Root reads the same nu config, the same LazyVim setup, the same aqua/mise pins, and the same starship prompt. Single source of truth: edits in the user's home apply to both.
 
-With this in place, `sudo -i` lands in nu with the full managed UX. `sudo nvim /etc/foo` works because aqua's stub now resolves with `AQUA_GLOBAL_CONFIG` set. The `vi` alias works because root is in nu, where the alias is defined.
+With this in place, `sudo -i` lands in nu with the full managed UX. `sudo nvim /etc/foo` works because aqua's stub now resolves with `AQUA_GLOBAL_CONFIG` set. `python` and `java` also resolve through the shared mise shims because root exports the invoking user's `MISE_DATA_DIR`. The `vi` alias works because root is in nu, where the alias is defined.
+
+Reinstalling replaces the managed root blocks between their markers instead of appending duplicate copies, so root PATH and runtime settings can be corrected by rerunning the installer.
 
 The installer primes the sudo credential cache (`sudo -v`) up front so the many internal sudo calls don't each re-prompt. If sudo authentication fails or sudo isn't installed, the step is skipped with a warn and the rest of the install proceeds normally — so non-sudoer accounts still get a working user-level setup. Pass `--skip-root` to disable explicitly.
 
-**Security model**: root reuses the *invoking user*'s binaries and config. If the user account is compromised, the attacker can plant a malicious binary in `~/.local/share/aquaproj-aqua/bin/` and the next `sudo -i` will execute it as root. This is harmless when the user is already a sudoer (the attacker can do the same with `sudo bash`), but on shared machines where the invoking user is NOT a sudoer this leaks a privilege-escalation path — pass `--skip-root` to disable.
+**Security model**: root reuses the *invoking user*'s binaries, aqua config, mise data, and shell config. If the user account is compromised, the attacker can plant a malicious binary in `~/.local/share/aquaproj-aqua/bin/` or a mise shim path and the next `sudo -i` will execute it as root. This is harmless when the user is already a sudoer (the attacker can do the same with `sudo bash`), but on shared machines where the invoking user is NOT a sudoer this leaks a privilege-escalation path — pass `--skip-root` to disable.
 
 To remove after the fact: delete the two managed blocks from `/root/.profile` and `/root/.bashrc`, and `sudo rm /root/.config/{nushell,nvim,aquaproj-aqua,mise,starship.toml}` (these are symlinks; removing them does not touch the source files).
 
@@ -216,6 +242,7 @@ Why link modes still exist:
 
 - Fonts are loaded through WezTerm `font_dirs` in the native Linux install, not installed system-wide
 - On WSL, fonts live on the Windows side and are not deployed to the WSL filesystem
+- On SSH-only servers, pass `--headless` so GUI terminal packages, font staging, and `~/.wezterm.lua` wiring are skipped while the shell and CLI baseline is still installed
 - Linuxbrew is used only as the installer-time source for bootstrap tools; daily cross-platform CLIs are managed by aqua, and cross-platform language runtimes are managed by mise
 - The shared language runtime baseline (Java, Python) lives in `shared/mise/config.toml` and is staged into `~/.config/mise/config.toml`; extend it by adding entries there, then rerun the installer or `mise install`
 - On native Linux, WezTerm launches `nu` by name from the user's PATH; Linuxbrew's `/home/linuxbrew/.linuxbrew/bin` entry added by `brew shellenv` (typically sourced from `~/.profile` or `~/.bashrc`) is what makes that resolution work. If WezTerm cannot find `nu`, verify that `command -v nu` succeeds in a login shell before launching WezTerm.
