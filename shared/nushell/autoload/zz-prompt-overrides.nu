@@ -7,10 +7,15 @@ export-env {
     $env.PROMPT_COMMAND = {|| "" }
   } else {
     $env.PROMPT_COMMAND = {||
-      try {
-        do $original_prompt_command
-      } catch {
+      let last_exit_code = try { ($env.LAST_EXIT_CODE? | default 0 | into int) } catch { 0 }
+      if $last_exit_code == 130 {
         ""
+      } else {
+        try {
+          do $original_prompt_command
+        } catch {
+          ""
+        }
       }
     }
   }
@@ -27,7 +32,7 @@ export-env {
   $env.PROMPT_INDICATOR_VI_INSERT = ""
   $env.PROMPT_INDICATOR_VI_NORMAL = ""
   $env.PROMPT_MULTILINE_INDICATOR = ""
-  $env.PROMPT_COMMAND_RIGHT = {|| "" }
+  $env.PROMPT_COMMAND_RIGHT = ""
 
   # Drop STARSHIP_SHELL so starship renders [custom.*] modules.
   # starship.nu sets STARSHIP_SHELL="nu" so starship can apply nu-specific

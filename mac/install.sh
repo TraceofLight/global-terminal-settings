@@ -369,7 +369,7 @@ NU_HEAD
   $env.PROMPT_INDICATOR = ""
   $env.PROMPT_INDICATOR_VI_INSERT = ""
   $env.PROMPT_INDICATOR_VI_NORMAL = ""
-  $env.PROMPT_COMMAND_RIGHT = {|| "" }
+  $env.PROMPT_COMMAND_RIGHT = ""
   $env.config = (
     $env.config?
     | default {}
@@ -379,22 +379,27 @@ NU_HEAD
   )
 
   $env.PROMPT_COMMAND = {||
-    let cmd_duration = ($env.CMD_DURATION_MS? | default 0 | into int)
-    let terminal_width = try { (term size).columns } catch { 80 }
-    let job_args = if (which "job list" | where type == built-in | is-not-empty) {
-      ["--jobs", (job list | length)]
+    let last_exit_code = try { ($env.LAST_EXIT_CODE? | default 0 | into int) } catch { 0 }
+    if $last_exit_code == 130 {
+      ""
     } else {
-      []
-    }
+      let cmd_duration = ($env.CMD_DURATION_MS? | default 0 | into int)
+      let terminal_width = try { (term size).columns } catch { 80 }
+      let job_args = if (which "job list" | where type == built-in | is-not-empty) {
+        ["--jobs", (job list | length)]
+      } else {
+        []
+      }
 
-    do $run_starship_prompt [
-      "--cmd-duration"
-      $cmd_duration
-      $"--status=($env.LAST_EXIT_CODE)"
-      "--terminal-width"
-      $terminal_width
-      ...$job_args
-    ]
+      do $run_starship_prompt [
+        "--cmd-duration"
+        $cmd_duration
+        $"--status=($last_exit_code)"
+        "--terminal-width"
+        $terminal_width
+        ...$job_args
+      ]
+    }
   }
 }
 NU_TAIL

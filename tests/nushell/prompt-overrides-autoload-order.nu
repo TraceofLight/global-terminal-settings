@@ -14,9 +14,14 @@ if $left_prompt != "" {
   exit 1
 }
 
-let right_prompt = (do $env.PROMPT_COMMAND_RIGHT)
-if $right_prompt != "" {
-  print $"expected PROMPT_COMMAND_RIGHT to stay disabled, got ($right_prompt)"
+let right_prompt_type = ($env.PROMPT_COMMAND_RIGHT | describe)
+if $right_prompt_type != "string" {
+  print $"expected PROMPT_COMMAND_RIGHT to be a string, got ($right_prompt_type)"
+  exit 1
+}
+
+if $env.PROMPT_COMMAND_RIGHT != "" {
+  print $"expected PROMPT_COMMAND_RIGHT to stay disabled, got ($env.PROMPT_COMMAND_RIGHT)"
   exit 1
 }
 
