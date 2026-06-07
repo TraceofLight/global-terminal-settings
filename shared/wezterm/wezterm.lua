@@ -147,14 +147,6 @@ config.keys = {
   { key = "D", mods = "ALT|SHIFT", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
 }
 
-config.mouse_bindings = {
-  {
-    event = { Down = { streak = 1, button = "Middle" } },
-    mods = "NONE",
-    action = act.Nop,
-  },
-}
-
 if wezterm.target_triple:find("windows") then
   local windows_home = wezterm.home_dir:gsub("\\", "/")
   local nu_candidates = {
