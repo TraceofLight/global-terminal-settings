@@ -2,17 +2,22 @@ const config = ($nu.default-config-dir | path join "config.nu")
 
 source $config
 
-$env.LAST_EXIT_CODE = 130
+let interrupted_exit_codes = [130, 3221225786, -1073741510]
 
-let left_prompt = (do $env.PROMPT_COMMAND)
-if $left_prompt != "" {
-  print $"expected interrupted PROMPT_COMMAND to return an empty prompt, got ($left_prompt)"
-  exit 1
-}
+for exit_code in $interrupted_exit_codes {
+  hide-env -i TERMINAL_BOOTSTRAP_PROMPT_WAS_CALLED
+  $env.LAST_EXIT_CODE = $exit_code
 
-if ($env.TERMINAL_BOOTSTRAP_PROMPT_WAS_CALLED? | default "") != "" {
-  print "expected interrupted PROMPT_COMMAND to skip the original prompt command"
-  exit 1
+  let left_prompt = (do $env.PROMPT_COMMAND)
+  if $left_prompt != "" {
+    print $"expected interrupted PROMPT_COMMAND to return an empty prompt for status ($exit_code), got ($left_prompt)"
+    exit 1
+  }
+
+  if ($env.TERMINAL_BOOTSTRAP_PROMPT_WAS_CALLED? | default "") != "" {
+    print $"expected interrupted PROMPT_COMMAND to skip the original prompt command for status ($exit_code)"
+    exit 1
+  }
 }
 
 let right_prompt_type = ($env.PROMPT_COMMAND_RIGHT | describe)

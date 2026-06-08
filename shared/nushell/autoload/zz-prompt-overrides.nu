@@ -8,7 +8,7 @@ export-env {
   } else {
     $env.PROMPT_COMMAND = {||
       let last_exit_code = try { ($env.LAST_EXIT_CODE? | default 0 | into int) } catch { 0 }
-      if $last_exit_code == 130 {
+      if $last_exit_code in [130, 3221225786, -1073741510] {
         ""
       } else {
         try {
