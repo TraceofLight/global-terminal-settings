@@ -1,5 +1,12 @@
 # Codex Clipboard Image Paste Implementation Plan
 
+> **Status:** Archived historical record. This plan was executed; the feature is still active.
+> It was later fixed (2026-06-13) so the helper also handles an image **file** copied in
+> Explorer (`Ctrl+C` → `CF_HDROP`), emits a forward-slash temp path, and stages under
+> `%TEMP%\wezterm-clipboard`.
+>
+> **Current source of truth:** `shared/wezterm/wezterm.lua`, `shared/wezterm/save-clipboard-image.ps1`.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add a Windows WezTerm shortcut path that lets Codex paste image clipboard contents as temporary PNG files.

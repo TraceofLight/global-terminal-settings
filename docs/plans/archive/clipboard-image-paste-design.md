@@ -1,5 +1,17 @@
 # Codex Clipboard Image Paste Design
 
+> **Status:** Archived historical record. The feature shipped and is still active; the
+> `Ctrl+V`-in-an-agent-pane interception is required because Claude Code / Codex only
+> attach an image when a path to it is *pasted* (a raw `Ctrl+V` keystroke does not work).
+>
+> **Diverged from shipped code:**
+> - The helper now also handles an image **file** copied in Explorer (`Ctrl+C` → `CF_HDROP`),
+>   not just a bitmap (`Win+Shift+S`); it copies the file into the temp dir. Fixed 2026-06-13.
+> - It emits a forward-slash temp path; the staging dir was renamed
+>   `%TEMP%\codex-clipboard` → `%TEMP%\wezterm-clipboard`.
+>
+> **Current source of truth:** `shared/wezterm/wezterm.lua`, `shared/wezterm/save-clipboard-image.ps1`.
+
 ## Goal
 
 Make image clipboard paste less tedious in Windows WezTerm sessions running Codex. When the active pane is Codex and the Windows clipboard contains an image, `Ctrl+V` should save the image to a temporary PNG and paste that path into Codex.

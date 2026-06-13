@@ -12,3 +12,5 @@ These files are not maintained. For current behavior, prefer the files listed un
 - [`linux-wsl-support.md`](linux-wsl-support.md) — implementation plan for the Linux and WSL addition.
 - [`prompt-os-indicator-design.md`](prompt-os-indicator-design.md) — design for the Starship OS segment.
 - [`prompt-os-indicator.md`](prompt-os-indicator.md) — implementation plan for the Starship OS segment.
+- [`clipboard-image-paste-design.md`](clipboard-image-paste-design.md) — design for the WezTerm `Ctrl+V` agent-pane clipboard-image paste (bitmap + Explorer file copy → temp PNG path).
+- [`clipboard-image-paste.md`](clipboard-image-paste.md) — implementation plan for the WezTerm clipboard-image paste.
