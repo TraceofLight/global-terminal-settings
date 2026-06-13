@@ -141,13 +141,18 @@ config.window_padding = {
 
 config.keys = {
   { key = "c", mods = "CTRL|SHIFT", action = act.CopyTo("Clipboard") },
-  { key = "v", mods = "CTRL", action = wezterm.action_callback(agent_clipboard_paste) },
   { key = "v", mods = "CTRL|SHIFT", action = act.PasteFrom("Clipboard") },
   { key = "d", mods = "ALT|SHIFT", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
   { key = "D", mods = "ALT|SHIFT", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
 }
 
 if wezterm.target_triple:find("windows") then
+  -- Claude Code / Codex cannot read a clipboard image from a raw Ctrl+V keystroke
+  -- on native Windows, so intercept Ctrl+V and paste a temp-file path instead.
+  -- macOS and Linux handle Ctrl+V image paste natively, so they leave it unbound
+  -- (a literal Ctrl+V passes straight through to the agent CLI).
+  table.insert(config.keys, { key = "v", mods = "CTRL", action = wezterm.action_callback(agent_clipboard_paste) })
+
   local windows_home = wezterm.home_dir:gsub("\\", "/")
   local nu_candidates = {
     os.getenv("LOCALAPPDATA") and (os.getenv("LOCALAPPDATA"):gsub("\\", "/") .. "/Programs/nu/bin/nu.exe") or nil,
