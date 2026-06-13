@@ -21,6 +21,14 @@ try {
 
   $outputDir = Join-Path ([System.IO.Path]::GetTempPath()) 'wezterm-clipboard'
   $null = New-Item -Path $outputDir -ItemType Directory -Force
+
+  # Best-effort purge of stale paste temps from earlier sessions; Windows does
+  # not auto-clean %TEMP%, and each paste drops a throwaway PNG here. Anything
+  # older than a day was long since attached. Never let cleanup fail the paste.
+  Get-ChildItem -LiteralPath $outputDir -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-1) } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
+
   $stamp = [System.Guid]::NewGuid().ToString('N').Substring(0, 8)
 
   # 1. Bitmap on the clipboard (screenshot).
