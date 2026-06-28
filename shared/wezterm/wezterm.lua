@@ -188,6 +188,7 @@ if wezterm.target_triple:find("windows") then
   }
 else
   if wezterm.target_triple:find("darwin") then
+    config.font_size = 15.5
     config.macos_window_background_blur = 20
     config.set_environment_variables = {
       XDG_CONFIG_HOME = wezterm.home_dir .. "/.config",
