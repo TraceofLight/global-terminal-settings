@@ -25,7 +25,7 @@ if (($starship_config | is-not-empty) and ($starship_config | path exists)) {
 }
 
 # GUI-launched WezTerm sessions on macOS do not always inherit Homebrew's PATH.
-if (($nu.os-info.name | str downcase) == "macos") {
+if (($nu.os-info.name | str lowercase) == "macos") {
   let bootstrap_paths = [
     ("~/.local/bin" | path expand)
     "/opt/homebrew/bin"
@@ -37,7 +37,7 @@ if (($nu.os-info.name | str downcase) == "macos") {
   $env.PATH = (($bootstrap_paths | append ($env.PATH? | default [])) | uniq)
 }
 
-if (($nu.os-info.name | str downcase) == "windows") {
+if (($nu.os-info.name | str lowercase) == "windows") {
   let windows_system_drive = ($env.SystemDrive? | default "C:")
   let windows_aqua_root = if ($windows_system_drive | str ends-with ":") {
     $"($windows_system_drive)\\.aqua"
@@ -71,7 +71,7 @@ if (($nu.os-info.name | str downcase) == "windows") {
   $env.PATH = (($windows_bootstrap_paths | append ($env.PATH? | default [])) | uniq)
 }
 
-if (($nu.os-info.name | str downcase) == "linux") {
+if (($nu.os-info.name | str lowercase) == "linux") {
   let linux_bootstrap_paths = [
     "/home/linuxbrew/.linuxbrew/bin"
     "/home/linuxbrew/.linuxbrew/sbin"
@@ -94,7 +94,7 @@ if (($env.AQUA_GLOBAL_CONFIG? | default "" | is-empty) and ($aqua_global_config 
 
 let aqua_root = if ($env.AQUA_ROOT_DIR? | is-not-empty) {
   $env.AQUA_ROOT_DIR
-} else if (($nu.os-info.name | str downcase) == "windows") {
+} else if (($nu.os-info.name | str lowercase) == "windows") {
   if ($env.LOCALAPPDATA? | is-not-empty) {
     $env.LOCALAPPDATA | path join "aquaproj-aqua"
   } else if ($env.HOME? | is-not-empty) {

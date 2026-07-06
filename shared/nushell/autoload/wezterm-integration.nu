@@ -6,12 +6,12 @@ def __terminal_bootstrap_emit_cwd [] {
   let esc = (char --integer 27)
   let host = (^hostname | str trim)
   let cwd = ($env.PWD | path expand)
-  let normalized = if (($nu.os-info.name | str downcase) == "windows") {
+  let normalized = if (($nu.os-info.name | str lowercase) == "windows") {
     ($cwd | str replace -a '\' '/')
   } else {
     $cwd
   }
-  let uri_path = if (($nu.os-info.name | str downcase) == "windows") and not ($normalized | str starts-with "/") {
+  let uri_path = if (($nu.os-info.name | str lowercase) == "windows") and not ($normalized | str starts-with "/") {
     $"/($normalized)"
   } else {
     $normalized
